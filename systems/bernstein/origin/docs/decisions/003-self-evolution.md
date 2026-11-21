@@ -1,0 +1,485 @@
+# ADR-003: Self-Evolution Feedback Loop Architecture
+
+**Status**: Approved
+**Date**: 2026-03-22
+**Author**: Bernstein Architecture Team
+**Context**: Self-improving multi-agent orchestration system
+
+---
+
+## Problem Statement
+
+Bernstein orchestrates multiple LLM agents working on software development tasks. Without a feedback mechanism:
+
+1. **Performance degradation goes undetected** - Agent success rates drop, costs increase, but no automatic correction occurs
+2. **Improvement opportunities are missed** - Better model routing, policy adjustments, and prompt optimizations require manual analysis
+3. **System stagnation** - The system cannot adapt to changing conditions (new providers, API changes, project evolution)
+4. **Reactive rather than proactive** - Humans must notice problems and manually fix them
+
+---
+
+## Requirements
+
+1. **Automatic metrics collection** - Track task success, cost, latency, token usage, provider health
+2. **Performance analysis** - Detect trends, anomalies, and bottlenecks
+3. **Upgrade decision logic** - Determine when and how to improve the system
+4. **Safe execution** - Apply changes with rollback capability
+5. **Continuous operation** - Run in background without human intervention
+
+---
+
+## Architecture
+
+```mermaid
+graph LR
+    Metrics["Metrics\nCollection"] --> Analysis["Analysis\nEngine"] --> Upgrade["Upgrade\nDecision"]
+    Upgrade --> Exec["Execution\nEngine"]
+    Exec --> Store["State Store\n(.sdd/metrics)"]
+    Exec --> Metrics
+```
+
+### Component 1: Metrics Collection
+
+```mermaid
+graph TD
+    subgraph Metrics Collection
+        TM["Task Metrics"] & AM["Agent Metrics"] & CM["Cost Metrics"]
+        TM & AM & CM --> Agg["Metrics Aggregator"]
+        Agg --> TS["Time-Series Storage (.sdd)"]
+    end
+```
+
+**Task Metrics:**
+- `task_duration_seconds`: Time from spawn to completion
+- `task_success_rate`: Percentage passing janitor verification
+- `task_rework_rate`: Percentage requiring fix tasks
+- `task_token_usage`: Total tokens consumed
+- `task_cost_usd`: Dollar cost per task
+- `files_modified`: Number of files changed
+- `lines_added_deleted`: Code churn metrics
+
+**Agent Metrics:**
+- `agent_lifetime_seconds`: Session duration
+- `agent_tasks_completed`: Tasks per session
+- `agent_heartbeat_failures`: Times heartbeat was missed
+- `agent_sleep_incidents`: Times agent stopped responding
+- `agent_context_tokens`: Context window utilization
+
+**Cost Metrics:**
+- `cost_per_provider`: USD spent per LLM provider
+- `cost_per_role`: USD spent per agent role
+- `cost_per_task`: Average cost per completed task
+- `free_tier_utilization`: Percentage using free tiers
+- `budget_remaining`: Remaining budget for billing period
+
+**Quality Metrics:**
+- `janitor_pass_rate`: First-pass verification success
+- `human_approval_rate`: Percentage accepted without review
+- `rollback_rate`: Percentage of changes reverted
+- `test_pass_rate`: Automated test success rate
+
+**Provider Health Metrics:**
+- `provider_status`: healthy/degraded/unhealthy/rate_limited
+- `provider_latency_ms`: Average response time
+- `provider_error_rate`: Percentage of failed requests
+- `quota_remaining`: Free tier quota left
+
+### Component 2: Analysis Engine
+
+```mermaid
+graph TD
+    subgraph Analysis Engine
+        TD_["Trend Detector\n(7-day trends)"] & AD["Anomaly Detector\n(outliers)"]
+        TD_ & AD --> RCA["Root Cause Analyzer\nCorrelation · Bottleneck · Cost drivers"]
+        RCA --> IO["Improvement Opportunities\nRouting · Providers · Policy · Templates"]
+    end
+```
+
+**Analysis Algorithms:**
+
+1. **Trend Detection**
+   - Rolling average comparison (current vs 7-day baseline)
+   - Linear regression for cost/performance trends
+   - Change-point detection for sudden shifts
+
+2. **Anomaly Detection**
+   - Z-score based outlier detection (threshold: |z| > 2.5)
+   - Isolation forest for multi-variate anomalies
+   - Threshold-based alerts (e.g., cost spike > 50%)
+
+3. **Correlation Analysis**
+   - Pearson correlation between metrics
+   - Identifies relationships (e.g., model choice → success rate)
+   - Surfaces hidden dependencies
+
+4. **Bottleneck Identification**
+   - Queue depth analysis per role
+   - Agent utilization rates
+   - Task completion rate by complexity
+
+### Component 3: Upgrade Decision Logic
+
+```mermaid
+graph TD
+    subgraph Upgrade Decision Logic
+        Trig["Trigger Conditions\nCost spike · Success drop · Degradation\nNew provider · Scheduled review"]
+        Trig --> Cat["Upgrade Categories"]
+        Cat --> PU["Policy Update"] & RR["Routing Rules"]
+        Cat --> MR["Model Routing"] & RT["Role Templates"]
+        PU & RR & MR & RT --> DC["Decision Criteria\nImprovement > threshold · Risk acceptable\nCost < savings · No conflicts"]
+    end
+```
+
+**Trigger Conditions:**
+
+| Trigger | Threshold | Action |
+|---------|-----------|--------|
+| Cost spike | >50% increase in 24h | Immediate review |
+| Success rate drop | <80% for 10+ tasks | Model routing adjustment |
+| Free tier available | New provider detected | Policy update |
+| Budget threshold | >80% of monthly budget | Cost optimization |
+| Scheduled review | Weekly/Monthly | Full system analysis |
+
+**Upgrade Categories:**
+
+1. **Policy Updates** (Low Risk)
+   - Adjust provider switching thresholds
+   - Modify batch sizes
+   - Update rate limit configurations
+
+2. **Routing Rules** (Medium Risk)
+   - Change model selection criteria
+   - Add/remove provider preferences
+   - Adjust effort level mappings
+
+3. **Model Routing** (Medium Risk)
+   - Switch default models for roles
+   - Update complexity thresholds
+   - Add new model providers
+
+4. **Role Templates** (High Risk)
+   - Update system prompts
+   - Modify task prompt templates
+   - Change role configurations
+
+### Component 4: Execution Engine
+
+```mermaid
+graph LR
+    subgraph Execution Engine
+        V["Validate\nChange"] --> A["Apply\nChange"] --> Ve["Verify\nChange"]
+        Ve -->|fail| Al["Alert"] --> Mon["Monitor\nResults"] --> Rb["Rollback\nif needed"]
+    end
+```
+
+**Execution Flow:**
+
+1. **Validation**
+   - Syntax check for YAML/JSON policy changes
+   - Dry-run simulation for routing changes
+   - Backward compatibility verification
+
+2. **Application**
+   - Atomic file writes with rollback capability
+   - Version control integration (git commit per change)
+   - Notification to running agents
+
+   **Rollback semantics.** A rollback is driven by the proposal it is given and
+   by a record written to disk at apply time, never by state held in the
+   applying process. `FileUpgradeExecutor` copies each file aside under
+   `upgrades/backups/<storage key>/`, where the storage key is the proposal id
+   plus a digest of its identity fields (so two runs' `UPG-0001` never share a
+   directory), and writes a `manifest.json` beside it. `rollback_upgrade(proposal)`
+   therefore works in a process that did not perform the apply — after a
+   restart, or from a different command — given the same proposal object, since
+   the key is derived from it rather than from the id alone.
+
+   It has exactly three outcomes, and the distinction between the first two
+   matters:
+
+   | Situation | Result |
+   |---|---|
+   | `history.jsonl` records no applied change for this proposal | `True` — there is nothing to undo |
+   | The manifest exists and every file in it was restored | `True` |
+   | Applied with no manifest, or a restore failed | `RollbackError` |
+
+   The third case used to be the first: an empty in-process backup map iterated
+   zero times and returned `True`, so a rollback that restored nothing reported
+   success. A rollback that cannot be performed now fails loudly, and the
+   evolution loop re-raises rather than continuing to apply proposals on top of
+   a tree in an undeclared state.
+
+   Every rollback writes a receipt to `upgrades/rollbacks/<proposal id>.json`
+   (a repeat rollback or a reused id writes `<proposal id>.<n>.json` rather than
+   overwriting) carrying the files restored and a sha256 over the receipt body's
+   canonical JSON — the same shape the change-contract verdict receipt uses. The
+   checksum is keyless: it catches accidental corruption, not deliberate edits,
+   since anyone who changes the body can recompute it.
+
+   No category has a sink that writes backups today, so in a shipped build the
+   manifest branch is not reached and every rollback is the "nothing was
+   applied" row above.
+
+3. **Verification**
+   - Immediate metric check (did things improve?)
+   - A/B comparison with baseline
+   - Rollback trigger if degradation detected
+
+4. **Monitoring**
+   - Watch key metrics for 24h post-change
+   - Alert on unexpected side effects
+   - Log all changes for audit trail
+
+### Change Contract
+
+A proposal may carry an optional typed `ChangeContract` (see
+`src/bernstein/evolution/types.py`) that pins down *what* the change targets,
+*what* it predicts, *what* it promises to leave alone, *how* to falsify the
+prediction, and *how* to reverse it. The contract is the unit an author is
+expected to fill in; admission and evaluation gates consume it to decide
+whether the proposal is admissible, comparable against history, and safe to
+apply.
+
+**Fields:**
+
+- `component` (`str`) — logical name of the subsystem the change targets
+  (e.g. `"evolution.admission"`, `"routing.provider"`). The author uses this
+  to scope the change so the falsifier can match the right history window.
+- `target_fingerprint` (`str`) — opaque identity of the code/config the
+  proposal applies on top of. Used to reject stale proposals whose target
+  has moved.
+- `predicted_effect` (`PredictedEffect`) — the metric name (`metric: str`)
+  and the direction the change is expected to move it
+  (`direction: EffectDirection`, one of `increasing` | `decreasing`). The
+  admission gate checks this is well-formed; the evaluator compares the
+  recorded post-apply metric against this prediction.
+- `invariants` (`list[str]`) — predicates the change promises to preserve
+  (e.g. `"backward-compatible"`, `"no_new_dependency"`,
+  `"tests_in:tests/unit/test_X.py"`). The author lists each as a check the
+  evaluator can mechanically run.
+- `falsifier` (`ChangeFalsifier`) — describes how to disprove the
+  prediction: `history_ref` (which recorded window to compare against) and
+  `expected_verdicts` (the set of verdicts the falsifier expects, e.g.
+  `["pass", "regression"]`). If the recorded verdicts do not intersect
+  `expected_verdicts`, the prediction is treated as falsified.
+- `rollback` (`ChangeRollback`) — the inverse change: `files_to_restore`
+  (paths to revert) and `change_description` (human-readable summary of
+  what the rollback does). Required for every contract-bearing proposal
+  so apply-time rollback is always deterministic.
+
+**Authoring contract.** Every `ChangeContract` field is required when a
+proposal opts in (the `UpgradeProposal.contract` field is `None` for
+proposals that pre-date the contract). The contract is the contract:
+admission rejects a proposal whose `ChangeContract` is malformed, and the
+evaluator refuses to score one whose falsifier names a history window that
+is not yet sealed. Authors fill all six fields; readers (admission,
+evaluation, rollback) consume the typed projection, not the raw dict.
+
+---
+
+## Data Flow
+
+```
+Task Completion
+       │
+       ▼
+┌──────────────┐
+│  Janitor     │───▶ Pass/Fail + Metrics
+└──────────────┘
+       │
+       ▼
+┌──────────────┐
+│  Metrics     │───▶ Append to .sdd/metrics/tasks.jsonl
+│  Collector   │
+└──────────────┘
+       │
+       ▼
+┌──────────────┐
+│  Analysis    │───▶ Run every N tasks or T minutes
+│  Scheduler   │
+└──────────────┘
+       │
+       ▼
+┌──────────────┐
+│  Analysis    │───▶ Identify patterns
+│  Engine      │
+└──────────────┘
+       │
+       ▼
+┌──────────────┐
+│  Upgrade     │───▶ Decide on changes
+│  Decision    │
+└──────────────┘
+       │
+       ▼
+┌──────────────┐
+│  Execution   │───▶ Apply + Verify
+│  Engine      │
+└──────────────┘
+       │
+       ▼
+┌──────────────┐
+│  Git Commit  │───▶ Track changes
+│  + Notify    │
+└──────────────┘
+```
+
+---
+
+## State Storage
+
+All state lives in `.sdd/` directory:
+
+```
+.sdd/
+├── metrics/
+│   ├── tasks.jsonl          # Per-task metrics (append-only)
+│   ├── agents.jsonl         # Per-agent session metrics
+│   ├── costs.jsonl          # Cost tracking per provider
+│   └── quality.jsonl        # Quality metrics (janitor, tests)
+├── analysis/
+│   ├── trends.json          # 7-day rolling trends
+│   ├── anomalies.json       # Detected anomalies
+│   └── opportunities.json   # Improvement suggestions
+├── upgrades/
+│   ├── pending.json         # Upgrades awaiting approval
+│   ├── applied.json         # Recently applied upgrades
+│   └── history.jsonl        # Full upgrade history
+└── config/
+    ├── policies.yaml        # Active policies
+    ├── routing.yaml         # Model routing rules
+    └── providers.yaml       # Provider configurations
+```
+
+---
+
+## Metrics Schema
+
+**Task Metrics Record:**
+```json
+{
+  "timestamp": "2026-03-22T10:30:00Z",
+  "task_id": "PROJ-042",
+  "role": "backend",
+  "model": "sonnet",
+  "provider": "openrouter",
+  "duration_seconds": 180,
+  "tokens_prompt": 2500,
+  "tokens_completion": 1200,
+  "cost_usd": 0.0045,
+  "janitor_passed": true,
+  "files_modified": 3,
+  "lines_added": 45,
+  "lines_deleted": 12
+}
+```
+
+**Provider Cost Record:**
+```json
+{
+  "timestamp": "2026-03-22T10:30:00Z",
+  "provider": "openrouter",
+  "model": "sonnet",
+  "tier": "paid",
+  "tokens_in": 2500,
+  "tokens_out": 1200,
+  "cost_usd": 0.0045,
+  "rate_limit_remaining": 950,
+  "free_tier_remaining": 0
+}
+```
+
+---
+
+## Upgrade Approval Modes
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| Auto | Apply immediately | Low-risk policy tweaks |
+| Human | Require approval | High-risk template changes |
+| Hybrid | Auto if confidence >90%, else human | Most upgrades |
+
+---
+
+## Implementation: EvolutionCoordinator
+
+The `EvolutionCoordinator` class in `src/bernstein/core/evolution.py` implements this architecture:
+
+```python
+coordinator = EvolutionCoordinator(
+    router=tier_aware_router,
+    hijacker=tier_hijacker,
+    metrics_collector=metrics_collector,
+    config=EvolutionConfig(
+        evaluation_interval_minutes=30,
+        min_tasks_for_evaluation=5,
+        auto_execute_low_priority=False,
+    ),
+)
+
+coordinator.start()  # Background evaluation loop
+```
+
+**Key responsibilities:**
+1. Periodic performance evaluation (every 30 minutes)
+2. Metrics aggregation and trend analysis
+3. Upgrade recommendation generation
+4. Task creation for implementation
+5. History tracking for impact measurement
+
+---
+
+## Alternatives Considered
+
+### Option A: Manual-only improvements
+Humans analyze metrics and manually apply fixes.
+
+**Pros:** Full control, no automation risk
+**Cons:** Slow, reactive, requires constant human attention
+
+**Verdict:** Rejected. Defeats the purpose of self-evolution.
+
+### Option B: Full auto-pilot
+System makes and applies all changes automatically.
+
+**Pros:** Maximum automation, rapid iteration
+**Cons:** Risk of cascading errors, hard to debug
+
+**Verdict:** Rejected for high-risk changes. Accepted for low-risk policy tweaks.
+
+### Option C: Hybrid (chosen)
+Automatic analysis + human approval for high-risk changes.
+
+**Pros:** Best balance of automation and control
+**Cons:** Requires human involvement for major changes
+
+**Verdict:** Selected. Low-risk changes (policy tweaks) auto-apply. High-risk changes (prompt modifications) require approval.
+
+---
+
+## Consequences
+
+### Positive
+- **Continuous improvement** - System gets better over time without manual intervention
+- **Early problem detection** - Anomalies caught before they become critical
+- **Cost optimization** - Automatic switching to cheaper providers when possible
+- **Performance tuning** - Router thresholds adjust based on real data
+
+### Risks
+- **Over-optimization** - System might optimize for metrics at expense of quality
+- **Change fatigue** - Too many automatic changes could destabilize development
+- **Debugging complexity** - Harder to trace why a change was made
+
+### Mitigations
+- **Confidence thresholds** - Only apply changes with >80% confidence
+- **Rate limiting** - Maximum 2 concurrent upgrades
+- **Audit trail** - All changes logged with rationale
+- **Rollback capability** - Automatic revert if metrics degrade
+
+---
+
+## References
+
+- Implementation: `src/bernstein/core/evolution.py`
+- Metrics: `src/bernstein/core/metrics.py`
+- Policy Engine: `src/bernstein/core/policy.py`

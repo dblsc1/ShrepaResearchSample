@@ -1,0 +1,516 @@
+# Testing & CI Hardening Reference
+
+This page documents the test tooling we run on every PR and overnight,
+what bug class each tool catches, and how to reproduce a CI failure
+locally without waiting for the cloud runner.
+
+> **Docs duty for test PRs.** Any PR that adds a new test layer, tool, or
+> harness MUST update this page in the same PR. See the project-wide
+> [Documentation duty](https://github.com/sipyourdrink-ltd/bernstein/blob/main/CONTRIBUTING.md#docs-alongside-code) rule.
+
+## Tool ↔ bug-class matrix
+
+| Tool                        | Bug class                                                         | When                |
+| --------------------------- | ----------------------------------------------------------------- | ------------------- |
+| **Hypothesis** (property)   | Hash-chain breaks, signature roundtrip, canonical-bytes drift     | PR (smoke), nightly (deep)  |
+| **Schemathesis**            | 5xx leaks against fuzzed REST inputs                              | PR (allow-list), nightly (full)  |
+| **CrossHair**               | Logic errors in pure helpers (concolic execution, assert checks)  | nightly only         |
+| **mutmut diff-only**        | Test-effectiveness gaps on PR-changed lines                       | PR (advisory)       |
+| **mutmut fixed paths**      | Per-module kill-rate gate on a fixed critical-path module list    | weekly cron + manual dispatch  |
+| **mutmut full**             | Test-effectiveness gaps across the whole repo                     | nightly (advisory)  |
+| **Semgrep** (custom rules)  | eval/exec/pickle in production, env-leak in `_spawn_*`            | PR (ERROR fails)    |
+| **Bandit**                  | Generic Python security smells (shell=True, weak hash, tarfile)   | PR (HIGH only)      |
+| **pip-audit**               | Known PyPI CVEs in production deps                                | PR (strict)         |
+| **Beartype** (claw)         | Runtime type-contract violations in the allow-listed strict zone (`tests/_beartype_claw.py`; today `core.persistence.lineage_signer`) | PR                  |
+| **syrupy** (snapshot)       | JSONL/audit/lineage wire-format drift                             | PR                  |
+| **Pyright strict zone**     | Untyped/implicit-Any leakage in the allow-list in `pyrightconfig.strict.json` (lineage, lineage signer, WAL, lineage v2 store) | PR                  |
+| **mypy strict zone**        | Same, from mypy's inference, in `core/{evidence,identity,lineage,persistence}/` and `cli/commands/pr_cmd.py` | PR                  |
+| **Vulture**                 | Dead code (unused functions/classes/vars at confidence ≥80)       | PR                  |
+| **Unreachable controls**    | Security/identity symbols with no production caller or stale allowlist reasons | PR unit suite |
+| **diff-cover** (LEVEL 1)    | Changed lines below the committed diff-coverage floor             | PR (advisory)       |
+| **coverage ratchet** (LEVEL 2) | Total coverage dropped below the committed high-water mark      | push to main (advisory) |
+| **import-linter**           | Architecture-contract violations (cross-package imports)          | PR                  |
+| **test-count drop** (#4873) | Touched test module lost collected cases vs merge base            | PR (Repo hygiene)   |
+| **No-network guard**        | Unit tests that open a real outbound connection (flaky by design) | PR (every unit run) |
+| **Spawned-process identity race** | Duplicate run identities hidden by thread-only locking      | PR (identity anchor unit suite) |
+| **ruff** + **typos**        | Lint, format drift, common typos                                  | PR                  |
+| **Web Node tests**          | Pre-hydration theme resolution, SSE handling, governance/vocabulary routes, the access-token prompt | local only (`cd web && npm test`; not run in CI) |
+
+## Web UI tests
+
+The web package has a focused Node test layer for browser bootstrap code that
+must run before React hydration. Run it from the `web/` directory:
+
+```bash
+cd web && npm test
+```
+
+These tests execute the inline `theme-bootstrap` from `web/index.html` in
+isolated VM contexts. They cover stored and system theme resolution, blocked
+storage, unavailable or throwing browser APIs, inaccessible document roots,
+and the matching `ThemeProvider` storage fallback. They do not start a web
+server or make network requests.
+
+`test/auth-token-prompt.test.mjs` renders React into a `happy-dom` window,
+installed before React loads, and drives it with real DOM events: the 401
+path in `src/lib/api.ts` and the shell's access-token prompt. `fetch` is
+stubbed; nothing listens on a port.
+
+Test-count drop vs merge base (#4873)
+
+Repo hygiene compares `pytest --collect-only` counts for every touched
+`test_*.py` / `*_test.py` against the merge base. A drop fails the job
+outright (no committed ratchet baseline — overrides are the escape hatch).
+
+Outcome words are distinct: `OK` means compared and clean; `NOT_RUN` means
+no merge base so the guard never compared (not a clean bill of health).
+
+Parametrized consolidation (N cases → one `@pytest.mark.parametrize` with N
+values) keeps the collected count stable and stays green. Intentional drops
+need a PR-body override a reviewer can see:
+
+```text
+test-count-drop: tests/unit/foo/test_bar.py -3
+```
+
+Put it in the PR body, not in a commit message. The merge queue squashes
+(commit message = PR title + body), so the body is the only text the
+`merge_group` build reads; branch commit messages are discarded. The PR lane
+reads the body alone for the same reason. It does not re-run on a body edit,
+so push or re-run the job after adding the override.
+
+Unused overrides fail (stale). A deleted test whose matching `src/**/<stem>.py`
+was also deleted is carved out. An import failure under collect-only is named
+`cause=import_error` in the message so it is not mistaken for a silent count
+drop. Locally:
+
+```bash
+uv run python scripts/check_test_count_drop.py --base origin/main
+uv run python scripts/check_test_count_drop.py --base origin/main --pr-body "$(gh pr view --json body -q .body)"
+```
+
+## Run any of the above locally
+
+```bash
+# Identity anchoring, including a real two-process race against one audit dir
+uv run pytest tests/unit/security/test_identity_spawn_anchor.py -q --no-cov
+
+# Property suite (smoke)
+HYPOTHESIS_PROFILE=smoke uv run pytest tests/property/ -q --no-cov
+
+# Property suite (deep - same as nightly)
+HYPOTHESIS_PROFILE=deep uv run pytest tests/property/ -q --no-cov
+
+# Snapshot tests
+uv run pytest tests/snapshot/ -q --no-cov
+# Update snapshots after an intentional schema change:
+uv run pytest tests/snapshot/ -q --no-cov --snapshot-update
+
+# Schemathesis (smoke - only the critical-surface allow-list)
+BERNSTEIN_AUTH_DISABLED=1 SCHEMATHESIS_PROFILE=smoke \
+  uv run pytest tests/contract/ -q --no-cov
+
+# Semgrep (project rules; ERROR severity is the PR gate).
+# Install once via `uv tool install semgrep` - semgrep's transitive
+# pins (click<8.2, opentelemetry-sdk<1.38) conflict with our project
+# floors (click>=8.3.3, opentelemetry-sdk>=1.41.1), so it lives in its
+# own venv outside `uv sync`.
+uv tool install semgrep
+uv tool run semgrep --config .semgrep.yml --severity ERROR --error src/
+
+# Bandit (production HIGH-only with baseline)
+uv run bandit -r src/ -ll --severity-level high -b .bandit-baseline.json
+
+# pip-audit
+uv run pip-audit --strict
+
+# Beartype claw - runs the lineage-signer unit tests under runtime type
+# enforcement (allow-list: tests/_beartype_claw.py)
+BEARTYPE_USE_CLAW=enable \
+  uv run pytest tests/unit/ -q --no-cov \
+  -k 'lineage_signer or lineage_record or lineage_export'
+
+# Pyright strict zone
+uv run pyright --project pyrightconfig.strict.json
+
+# mypy strict zone (gated). Widen it by removing entries from `exclude`
+# in mypy.gate.ini as each module reaches strict cleanliness.
+uv run mypy --config-file mypy.gate.ini
+
+# mypy repo-wide (advisory - settings in pyproject.toml [tool.mypy]).
+# Carries a pre-existing backlog; the CI job only fails here if the run
+# aborts before checking the tree.
+uv run mypy src
+
+# Vulture
+vulture src/ vulture_whitelist.py --min-confidence 80 --exclude "tests,docs,*/grpc_gen/*"
+
+# Diff-cover (after a coverage run). The floor is the committed
+# diff_coverage_floor_percent in .coverage-baseline.json (LEVEL 1 of the
+# coverage ratchet); the weekly bump nudges it up. See
+# docs/operations/coverage-ratchet.md.
+uv run pytest tests/unit/ --cov=src/bernstein --cov-report=xml
+FLOOR=$(uv run python scripts/coverage_ratchet.py show-floor --baseline .coverage-baseline.json)
+uv run diff-cover coverage.xml --compare-branch=origin/main --fail-under="$FLOOR"
+
+# Total-coverage ratchet (LEVEL 2): compare a coverage.xml total to the
+# committed high-water mark without writing unless it rose.
+uv run python scripts/coverage_ratchet.py check \
+  --coverage-xml coverage.xml --baseline .coverage-baseline.json --no-bump
+
+# Re-derive the committed high-water mark from the baseline alone (no
+# coverage.xml, no network). Fails if the committed percentage does not
+# follow from the committed line-rate.
+uv run python scripts/coverage_ratchet.py verify \
+  --baseline .coverage-baseline.json --require-provenance
+```
+
+## When a tool fires on you
+
+### Unreachable controls
+Run `uv run python scripts/check_unreachable_controls.py` to compare the
+security/identity tree with `unreachable_controls_allowlist.txt`. The checker
+tracks calls through imported modules and aliases for top-level symbols;
+unrelated object methods with the same name do not count as callers. It still
+uses conservative name matching for unqualified references and methods. If a
+finding is truly uncalled, record a specific reason in the allowlist. If a
+production caller exists, extend the checker and its synthetic-tree tests to
+recognize that binding before updating the allowlist.
+
+### Semgrep ERROR
+The rule is intentionally tight. If you genuinely need the pattern,
+add the inline `# nosemgrep: <rule-id>  -- <one-line justification>`
+comment. PRs that disable a rule without justification get bounced.
+
+### Bandit HIGH
+Only HIGH fails the PR; the 11 pre-existing HIGH findings on `main`
+are captured in `.bandit-baseline.json`. New HIGH findings need either
+a fix or an explicit baseline update with rationale in the PR
+description.
+
+### Hypothesis falsifying example
+The error output includes a `git apply .hypothesis/patches/...` line.
+Apply that patch to add the failing example as a deterministic
+regression case, fix the bug, and the patch becomes a permanent unit
+test.
+
+### Schemathesis 5xx leak
+A real bug - an endpoint should never propagate an unhandled
+exception. The reproducer is printed at the bottom of the failure (a
+`curl` invocation against the mounted ASGI app).
+
+The `smoke` profile (the PR/merge-queue gate) is derandomized (#4024): the
+same commit always draws the same example set, so re-running the exact
+command above against an unchanged tree reproduces the same verdict every
+time - no seed to pass back in. The `deep` profile (nightly) is
+deliberately excluded from this and keeps exploring fresh input space on
+every run, which is where new defects should surface first.
+
+### Snapshot diff
+If the diff is intentional (you changed an audit field on purpose),
+re-run with `--snapshot-update` and commit the updated `.ambr`. If
+not, you've caused unintended wire-format drift.
+
+### mutmut survivor
+The mutation operator changed `==` to `!=` (etc.) and no test
+caught it. Either add a test that distinguishes the two operators
+or, if the mutation is genuinely undetectable (e.g. an off-by-one
+in a comment-only path), document why in `mutmut_config.py`.
+
+### mutmut fixed-paths gate
+`mutation-fixed.yml` runs `scripts/mutmut_critical.py` against a
+fixed list of high-risk modules (atomic claim, HMAC audit chain,
+audit integrity verifier, lineage gate/tips/merge, seed parser, journal verify,
+sandbox eval, policy engine, compliance policies, audit pack) and gates
+on a per-module kill rate. The module list, per-module thresholds,
+and wall-clock budgets live in `scripts/mutmut_critical.py:MODULES`.
+
+The gate enforces per module: `continue-on-error` in the workflow's
+matrix `include` is `false` for every module that holds its threshold
+with real margin, so a regression there fails the weekly audit run.
+`audit_log`, `sandbox_eval`, `policy_engine`, `compliance_policies` and
+`audit_pack` are the pinned exceptions that stay advisory (`audit_log`'s
+kill rate is well below threshold and needs test backfill on
+`src/bernstein/core/security/audit.py` before it can gate for real;
+`tests/unit/test_mutation_fixed_workflow_yaml.py:ADVISORY_MODULES` is the
+source of truth). Each
+module uploads its result JSON - score and survivor list - as a
+workflow artifact either way.
+
+Reproduce locally:
+
+```bash
+# All modules (slow - budgets sum to about three and a half hours).
+uv run python scripts/mutmut_critical.py
+
+# One module:
+uv run python scripts/mutmut_critical.py --only claim_next
+uv run python scripts/mutmut_critical.py --list   # show keys
+```
+
+Adding a module to the gate: extend `MODULES` in
+`scripts/mutmut_critical.py`, add the key to
+`jobs.mutate.strategy.matrix.module` in
+`.github/workflows/mutation-fixed.yml` with a matching `include` entry
+(`advisory: false` unless it is added to `ADVISORY_MODULES` in
+`tests/unit/test_mutation_fixed_workflow_yaml.py`).
+
+## Hermetic unit tests (no network)
+
+Unit tests are hermetic: a test under `tests/unit/` must not open a real
+outbound network connection. A test that talks to a remote host passes only
+while that host answers and fails intermittently otherwise (a transient 404, a
+DNS hiccup, a rate limit), turning a green suite red for reasons unrelated to
+the change under test. One such test (a signed-catalog install whose fixture
+pointed at a `github://` URL) once reached a live host, 404'd intermittently in
+CI, and wedged the merge queue.
+
+### The guard
+
+`tests/unit/conftest.py` installs an **autouse** fixture that wraps
+`socket.socket.connect` / `socket.socket.connect_ex` for every unit test (logic
+in `tests/unit/_no_network.py`). Any attempt to connect to a non-loopback
+address raises immediately:
+
+```
+RuntimeError: unit tests must not touch the network: blocked connection to
+api.example.com:443. Mock it (see docs/contributing/testing.md), or move a
+genuine integration test to tests/integration/.
+```
+
+Because the patch sits at the socket layer, it covers every higher-level client
+(`http.client`, `urllib`, `requests`, `httpx`, raw sockets) without per-library
+patching. It is hand-rolled rather than a third-party plugin so it adds no
+dependency to vet, lock, and audit, and so it integrates with the suite's
+existing strict-marker opt-out convention.
+
+**Loopback stays allowed.** Connections to `127.0.0.0/8`, `::1`, and the
+literal hostname `localhost`, plus Unix-domain sockets, pass through untouched,
+so the many unit tests that spin a local mock server keep working. The guard
+inspects the literal target before any name resolution, so a loopback hostname
+is allowed without an egress; a non-loopback hostname is blocked at the
+resolution boundary.
+
+The scope is `tests/unit/` only. Integration tests (`tests/integration/`)
+run real servers and are not guarded, because their conftest does not install
+the fixture.
+
+### When the guard fires on you
+
+The test under `tests/unit/` opened a real connection. Two correct fixes, in
+order of preference:
+
+1. **Make it hermetic (almost always the right answer).** Mock the network at
+   the seam: inject a fake client, patch the transport, or use the
+   `respx`/`TestClient` patterns already in the suite. Do **not** "fix" it by
+   pointing the call at a loopback URL unless the test genuinely runs a local
+   server.
+2. **Move a genuine integration test to `tests/integration/`.** If the test
+   truly must reach the network, it is not a unit test; relocate it. The guard
+   does not apply there.
+
+### Opting a single test out (rare)
+
+For the rare case where a test must stay under `tests/unit/` and reach the
+network, mark it and document why:
+
+```python
+import pytest
+
+
+@pytest.mark.allow_network  # justification: probes the real X endpoint; see #NNNN
+def test_live_thing() -> None: ...
+```
+
+The marker is registered in `pyproject.toml` (`--strict-markers` is on, so an
+unregistered marker is itself an error). Prefer relocation to
+`tests/integration/` over the marker: a network-touching test in the unit suite
+is a flake waiting to happen.
+
+### Reproduce locally
+
+```bash
+# Full unit suite with the guard active (per-file isolated runner):
+uv run python scripts/run_tests.py --parallel 4
+
+# One file or one test, same runner:
+uv run python scripts/run_tests.py tests/unit/test_foo.py
+uv run python scripts/run_tests.py tests/unit/test_foo.py::test_bar
+
+# Or straight pytest:
+uv run pytest tests/unit/ -q --no-cov
+
+# The guard's own meta-tests:
+uv run pytest tests/unit/test_no_network_guard.py -q --no-cov
+```
+
+## Multi-adapter pentest fan-out
+
+The `security-pentest` eval scenario supports a fan-out entry point
+that runs the same fixture through N adapters in parallel and reports
+the per-adapter and aggregate consensus precision/recall split:
+
+```python
+from pathlib import Path
+
+from bernstein.eval.pentest_runner import (
+    load_scenario_config,
+    mock_adapter,
+    run_multi_adapter,
+)
+from bernstein.eval.pentest_scorer import PentestScorer
+
+config = load_scenario_config(Path("eval/scenarios/security_pentest.yaml"))
+report = run_multi_adapter(
+    adapters={"alpha": mock_adapter, "beta": mock_adapter},
+    config=config,
+)
+split = PentestScorer().score_multi(report)
+print(split.per_adapter["alpha"].precision, split.per_adapter["alpha"].recall)
+print(split.consensus.precision, split.consensus.recall)
+```
+
+The CLI exposes the same surface:
+
+```bash
+bernstein eval scenario security-pentest --adapters mock,mock
+```
+
+Determinism contract: the per-adapter call order is recorded on the
+report (`call_order`) and the consensus list is sorted on the dedup
+key `(canonical_vuln_type, normalized_path)`, never on adapter
+completion order. Two runs over the same input therefore produce
+byte-identical output.
+
+Degenerate case: passing a single adapter to `run_multi_adapter`
+produces a per-adapter result that matches the legacy `run_scenario`
+output exactly - existing scripts keep working unchanged.
+
+## CI cost budget
+
+PR-time CI must stay under 2× the pre-2026 baseline. Heavy work
+(full mutmut, deep Hypothesis, full Schemathesis, full CrossHair)
+runs only in `nightly-deep-tests.yml` (cron `0 3 * * *`). That
+workflow has no `pull_request` trigger and is not a required check, so
+a red night blocks no PR. Its jobs are not `continue-on-error`;
+genuinely advisory tools tolerate failure with a step-level `|| true`.
+
+The added PR-time jobs target ≤8 min wall-clock each and run in
+parallel after the lint job clears (so a typo PR fails fast in <2
+min without burning compute on the heavy stack).
+
+## Collect-empty test modules
+
+A `test_*.py` (or `*_test.py`) whose body was emptied still collects cleanly
+and exits 0, so a shrinking suite looks green. Repo hygiene runs
+`scripts/check_empty_test_modules.py` to fail those modules. Scope is by
+**naming convention** (pytest's `python_files`), not a helper allowlist:
+`conftest.py`, `__init__.py`, and shared helpers are out of scope
+automatically. See issue #4834.
+
+```
+uv run python scripts/check_empty_test_modules.py
+```
+
+## Sharded unit suite
+
+For a failed subprocess, the runner reports its native exit code or signal.
+A signal takes precedence over any pytest-like summary printed by a nested
+process. Ordinary assertion failures retain their FAILURES and short-summary
+sections; when those sections are absent, the job log retains the complete
+captured stdout and stderr under separate labels. These diagnostics do not
+establish the cause of an unexplained process exit.
+
+`scripts/run_tests.py` runs each `tests/unit/test_*.py` file in its own
+subprocess (the OOM-avoidance model: a single `pytest --cov` over all
+files in one process exceeds the 7 GB runner ceiling). Each subprocess
+pays a fixed ~2.7 s of Python startup + full-package import regardless
+of how many tests the file holds, so at ~1.4k files a single runner
+spent most of its wall time on startup churn rather than test
+execution.
+
+The `Test` job therefore fans the file list out across parallel
+runners with `--shard i/N`:
+
+```
+# Run only shard 1 of 4 (a deterministic, disjoint quarter of the files):
+uv run python scripts/run_tests.py --shard 1/4
+
+# Compose with the affected-only selection used on PRs:
+uv run python scripts/run_tests.py --shard 1/4 --affected origin/main
+```
+
+The partition prefers **duration-weighted LPT** when
+`tests/fixtures/ci/test-shard-durations.json` is present: files are ordered by
+recorded seconds and each lands in the currently lightest shard. That keeps
+the union complete and disjoint while collapsing the multi-minute wall spread
+that count-modulo leaves between shards (issue #4840). Without that file, the
+fallback is **position-modulo** over the sorted file list (shard `i` owns
+every file whose index `j` satisfies `j % N == i - 1`). Both paths are
+deterministic and stable (a failing shard reruns the identical slice). An
+empty shard (when `N` exceeds the file count) is a legitimate no-op that
+exits 0.
+
+Refresh the committed timings from a successful merge-group run:
+
+```
+uv run python scripts/refresh_test_shard_durations.py --run-id <github-run-id>
+```
+
+Or merge live measurements while running:
+
+```
+uv run python scripts/run_tests.py --shard 1/4 --record-durations
+```
+
+In CI the `ubuntu`/`windows` `Test` cells fan out across a `shard`
+matrix dimension; the rolled-up `needs.test.result` the `CI gate`
+aggregator reads is `failure` if *any* shard cell fails, so every shard
+is still required. Each ubuntu Python 3.13 shard uploads its own
+`.coverage.<shard>` artifact on pushes to main (and on manual dispatches
+on main). The `coverage-report` job, which runs on main only for a
+manual dispatch or a release commit (`chore(release)` / `release:`),
+combines the four shards and uploads to Codecov. No JUnit report is
+produced. The only shard-1 pin is the capability-matrix spawn-refusal
+integration test, so it runs once per cell. The `test-macos` job shards
+the file list across four cells (templated name; no test cell is a
+required context). It runs only when the diff is macOS-sensitive or the
+PR carries `macos-needed`, never in the merge queue, and
+`ci-macos-nightly.yml` runs the full macOS suite daily as the safety
+net.
+
+### Legacy import aliases and `--affected`
+
+`--affected` selects tests from an import graph keyed on the dotted
+names files literally write. Some of those names have no file behind
+them: `bernstein.core` and `bernstein.cli` keep old import paths alive
+with a `sys.meta_path` finder reading a `{short_name: real_module}`
+table, so `from bernstein.core.worktree import ...` resolves to
+`bernstein/core/git/worktree.py` with nothing on disk ever named
+`core/worktree.py`. Without alias resolution the graph has no edge from
+the real file to the suite that imports it under the old name, and a
+change confined to that file selects no tests for it.
+
+`discover_module_aliases` reads those tables statically, so selection
+works on a tree that was never installed. It identifies a table by what
+it contains, **not by what it is named**: any module-level `str -> str`
+dict literal in a package `__init__` counts, and an entry survives only
+if its target is a real module and its legacy key is not. Do not add a
+naming convention on top of this - keying on the name is what made a
+plain rename delete edges silently.
+
+Static reading can still drift from what the interpreter does: a table
+built by a call, or moved out of the `__init__` into its own module,
+resolves fine at runtime and is invisible to the reader.
+`test_every_live_redirect_edge_is_discovered` in
+`tests/unit/test_test_impact_alias_edges.py` is what catches that. It
+asks the finders actually installed on `sys.meta_path` which legacy
+names they serve and fails if the selector cannot see one of them. If
+it fires, the fix is to make the table readable again (keep it a
+literal in the package `__init__`) or to widen the reader - never to
+weaken the test.
+
+Alias resolution feeds the cached `imports` lists, so changing it means
+bumping `_ANALYZER_CACHE_VERSION` and `_COMPAT_CACHE_VERSION` in
+`src/bernstein/core/quality/test_impact.py`. File hashes alone will not
+invalidate a map whose edges were derived under the old rule.

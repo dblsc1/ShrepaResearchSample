@@ -1,0 +1,18 @@
+name: "Bernstein CodeQL config"
+
+# The sanitizer model pack is deliberately not listed under `packs:`. That key
+# resolves pack names through the registry at `database init`, and this pack is
+# unpublished and lives in this repository, so no spelling of it works here. A
+# path is not even reported as an error -- `database init` logs
+#   WARNING: Invalid CodeQL pack specification: './.github/codeql/models'. Ignoring.
+# and analyses without it. That is how the pack sat unloaded from #4426 until
+# #6024 while the repository believed `sanitize_log` was modelled as a barrier.
+# It is handed to `database run-queries` instead, through
+# CODEQL_ACTION_EXTRA_OPTIONS in `.github/workflows/codeql.yml`.
+
+paths-ignore:
+  - "templates/adapter_plugin"
+  - "templates/quality_gate_plugin"
+  - "tests/**"
+  - "docs/**"
+  - "benchmarks/**"

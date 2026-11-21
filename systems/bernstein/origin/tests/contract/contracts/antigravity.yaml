@@ -1,0 +1,34 @@
+# Contract for the ``antigravity`` registry key (adapter: antigravity).
+#
+# ``antigravity`` is the product name of the Antigravity CLI and a second
+# registry key for the agy adapter (src/bernstein/adapters/agy.py). The
+# binary is ``agy``; there is no binary named ``antigravity``. The surface
+# below mirrors ``agy.yaml`` because both keys spawn the same command line:
+# ``agy -p <prompt> --sandbox --dangerously-skip-permissions
+# [--print-timeout <N>s]``.
+#
+# See docs/adapters/antigravity.md and docs/adapters/agy.md.
+adapter: antigravity
+binary: agy
+install:
+  method: manual
+  spec: ""
+auth:
+  required_for_help: false
+  required_for_models: false
+  # Keyring / OAuth is the default; API keys are optional overrides.
+  secret_env:
+    - "GOOGLE_API_KEY"
+    - "GEMINI_API_KEY"
+  basis: subscription_oauth
+required_flags:
+  - "-p"
+  - "--print"
+  - "--sandbox"
+  - "--dangerously-skip-permissions"
+  - "--print-timeout"
+  - "--conversation"
+required_subcommands: []
+expected_models:
+  command: []
+  required_present: []

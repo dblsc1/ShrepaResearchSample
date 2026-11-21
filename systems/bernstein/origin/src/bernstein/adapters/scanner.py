@@ -1,0 +1,373 @@
+"""Scanner adapter contract (issue #3617, slice 2 of #2953).
+
+Every external analysis tool (SAST, SCA, secret, IaC, DAST, recon) currently
+lives in its own bespoke wrapper.  This module provides the uniform
+``ScannerAdapter`` contract those wrappers should implement, mirroring the
+existing ``CLIAdapter`` contract in ``base.py``:
+
+* ``name() -> str``          -- stable registry key
+* ``scan(target, scope, workdir) -> list[Finding]`` -- run the analysis
+
+Plus a *class-level* capability declaration that drives the conformance suite:
+
+* ``output_format``  -- sarif / json / xml
+* ``determinism``    -- deterministic / feed_pinned / transcript_anchored
+* ``pinned_inputs``  -- which digests must be recorded for feed_pinned
+* ``category``       -- sast / sca / secret / iac / recon / dast
+
+The determinism tier is not documentation: the conformance suite
+(see ``scanner_conformance.py``) *requires* proof of the declared tier, and an
+adapter that lies about its tier fails conformance instead of degrading
+quietly.
+
+Reused infrastructure (never reimplemented):
+* ``enforce_network_policy()`` -- refuse egress to denied destinations
+* ``rate_limit_meter`` -- per-adapter rolling 429 counter
+"""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from contextlib import suppress
+from dataclasses import dataclass, field
+from enum import StrEnum
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from typing import TYPE_CHECKING, Any
+from urllib.parse import unquote, urlparse
+
+from bernstein.adapters.base import RateLimitMeter, record_rate_limit_hit
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from bernstein.adapters.scanner_finding import Finding
+
+
+# ---------------------------------------------------------------------------
+# Capability enums
+# ---------------------------------------------------------------------------
+
+
+class OutputFormat(StrEnum):
+    """The parseable output format the scanner emits."""
+
+    SARIF = "sarif"
+    JSON = "json"
+    XML = "xml"
+
+
+class DeterminismTier(StrEnum):
+    """How reproducible a scanner's output is, and what conformance must prove.
+
+    ``deterministic``     -- two runs on identical input yield identical
+                             finding hashes (no clock / PID / random noise).
+    ``feed_pinned``       -- reproducible "as-of" a recorded feed digest:
+                             identical hashes given the *same* recorded digest.
+    ``transcript_anchored`` -- not byte-deterministic; a transcript is recorded
+                             that a later verify step can diff.
+    """
+
+    DETERMINISTIC = "deterministic"
+    FEED_PINNED = "feed_pinned"
+    TRANSCRIPT_ANCHORED = "transcript_anchored"
+
+
+class ScannerCategory(StrEnum):
+    """The class of analysis the scanner performs."""
+
+    SAST = "sast"
+    SCA = "sca"
+    SECRET = "secret"
+    IAC = "iac"
+    RECON = "recon"
+    DAST = "dast"
+
+
+def normalize_report_path(path: str, target_root: Path | None) -> str:
+    r"""Make a scanner's reported path portable, and relative to the scan target.
+
+    One helper rather than a copy per adapter, because the bug it exists to
+    prevent is a HOST-dependent one: gitleaks, semgrep and trivy each carried
+    their own version, all three failed on Windows in the same way, and three
+    copies is three places for the next platform difference to be fixed in two
+    of them.
+
+    Every comparison here is in :class:`~pathlib.PurePosixPath`, deliberately,
+    and that is the fix rather than an implementation detail. A scanner report
+    is data that may have been produced on another machine, so the question
+    "is this path absolute, and is it under the scan root" must be answered the
+    same way wherever it is asked. Answering it in the HOST's flavour got two
+    different wrong answers on Windows for `/checkout/project/app.env`:
+
+    * ``PureWindowsPath("/checkout/project/app.env").is_absolute()`` is
+      ``False`` -- a drive-less rooted path is not absolute on Windows -- so
+      the relativisation never ran and the absolute path was reported verbatim;
+    * and had it run, ``target_root.resolve()`` would have anchored the root to
+      the current drive (``C:\checkout\project``) while the candidate had no
+      drive at all, so ``relative_to`` would have raised anyway.
+
+    Both roots are tried, raw and resolved: production passes a root that is
+    already resolved, while a caller holding a plain path would otherwise be
+    relativised against whatever drive the process happens to be on.
+
+    Args:
+        path: The path or file URI as the scanner reported it. Backslashes are accepted;
+            a report produced on Windows uses them.
+        target_root: The scan root, or ``None`` to normalise without relativising.
+
+    Returns:
+        The decoded file-URI path (or input path), with normalised separators,
+        relative to ``target_root`` when it lies underneath it. A path
+        OUTSIDE the scan target is reported as-is on purpose: silently
+        relativising it would claim the finding is somewhere it is not.
+    """
+    if path[:5].lower() == "file:":
+        uri = urlparse(path)
+        path = unquote(uri.path)
+        if uri.netloc and uri.netloc.lower() != "localhost":
+            path = f"//{uri.netloc}{path}"
+        elif len(path) >= 4 and path[0] == "/" and path[1].isalpha() and path[2:4] == ":/":
+            # RFC file URIs add a slash before a Windows drive. Strip it
+            # independently of the host parsing this recorded report.
+            path = path[1:]
+    text = path.replace("\\", "/")
+    candidate = PurePosixPath(text)
+    if target_root is None or not _is_rooted(text):
+        return candidate.as_posix()
+    for root in _candidate_roots(target_root):
+        with suppress(ValueError):
+            return candidate.relative_to(root).as_posix()
+    return candidate.as_posix()
+
+
+#: The name #5791 landed for the same fix. Kept as an alias rather than a
+#: second implementation: two helpers answering "is this path under the scan
+#: root" is how the three adapter copies drifted apart in the first place.
+normalize_finding_path = normalize_report_path
+
+
+def _is_rooted(text: str) -> bool:
+    """Is this path anchored, in EITHER flavour?
+
+    Asked in both because the two disagree, and a scanner report may have been
+    produced on the other one. ``/checkout/app.env`` is absolute to POSIX and
+    not to Windows (no drive); ``C:/checkout/app.env`` is absolute to Windows
+    and, to POSIX, an ordinary relative path whose first segment is ``C:``.
+    Trusting either alone leaves half of the reports unrelativised on one host.
+    """
+    return PurePosixPath(text).is_absolute() or PureWindowsPath(text).is_absolute()
+
+
+def _candidate_roots(target_root: Path) -> Iterator[PurePosixPath]:
+    """The scan root as written, then as resolved. Duplicates are harmless."""
+    yield PurePosixPath(target_root.as_posix())
+    with suppress(OSError):
+        yield PurePosixPath(target_root.resolve().as_posix())
+
+
+@dataclass(frozen=True)
+class ScanScope:
+    """What a scan is allowed to touch.
+
+    Attributes:
+        roots: Paths the scanner may read (usually the repo root or a subset).
+        include: Glob patterns to include (empty = everything under roots).
+        exclude: Glob patterns to exclude (takes precedence over ``include``).
+        max_depth: Optional directory depth cap.
+        config: Free-form adapter-specific scan configuration (rule sets,
+            severity thresholds, etc.).
+    """
+
+    roots: tuple[Path, ...] = ()
+    include: tuple[str, ...] = ()
+    exclude: tuple[str, ...] = ()
+    max_depth: int | None = None
+    config: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        # `as_posix()`, never `str()`. This dict is hashed: it reaches
+        # `CleanRunAttestation.body()` and from there `canonical_bytes()`, whose
+        # docstring states a cross-machine byte-equality contract. `str(Path)`
+        # renders the host's separator, so the same scan of the same tree
+        # serialised `/repo/src` on Linux and `\repo\src` on Windows and sealed
+        # two different attestation hashes into the lineage spine for one scope.
+        return {
+            "roots": [p.as_posix() for p in self.roots],
+            "include": list(self.include),
+            "exclude": list(self.exclude),
+            "max_depth": self.max_depth,
+            "config": dict(self.config),
+        }
+
+
+@dataclass
+class ScanResult:
+    """Result of a :meth:`ScannerAdapter.scan` call.
+
+    Attributes:
+        findings: The findings produced by the scan.
+        transcript: Optional adapter-recorded transcript (used when determinism
+            is ``transcript_anchored``).  Stored content-addressed so a later
+            verify step can diff it.
+        feed_digest: Optional digest of the recorded feed (used when determinism
+            is ``feed_pinned``).  Empty when the adapter did not pin a feed.
+        invocation_digest: Semantic digest of the invocation that produced this
+            result.  Every adapter already computed one and assigned it only to
+            ``self.last_invocation`` - an attribute of the adapter INSTANCE - so
+            the object callers receive and store could not say which invocation
+            produced it.  That is load-bearing for an empty scan: nmap builds its
+            transcript from the hosts and ports it found, never from the ones
+            requested, so two scans of different targets that both find nothing
+            return byte-identical results.  Empty when the adapter records no
+            invocation provenance.
+    """
+
+    findings: list[Finding] = field(default_factory=list)
+    transcript: str = ""
+    feed_digest: str = ""
+    invocation_digest: str = ""
+
+    def finding_hashes(self) -> list[str]:
+        """Return the per-finding canonical hashes, sorted."""
+        return sorted(f.finding_hash() for f in self.findings)
+
+
+# ---------------------------------------------------------------------------
+# The contract
+# ---------------------------------------------------------------------------
+
+
+class ScannerAdapter(ABC):
+    """Uniform contract for external analysis / scanner tools.
+
+    Subclass and implement :meth:`name` and :meth:`scan`.  Declare the four
+    capability fields at class level so the conformance suite can prove the
+    determinism tier you claim.
+
+    Reuse the inherited :meth:`enforce_network_policy` and
+    :attr:`rate_limit_meter` rather than reimplementing either - they are
+    imported from :mod:`bernstein.adapters.base` and shared with the CLI
+    adapter layer.
+    """
+
+    #: Stable registry key (e.g. ``"grype"``).  Subclasses must override.
+    registry_name: str = ""
+
+    # --- capability declaration (drives conformance) -----------------------
+
+    #: Output format the scanner emits.  Consumers parse according to this.
+    output_format: OutputFormat = OutputFormat.JSON
+
+    #: The determinism tier this adapter promises.  The conformance suite
+    #: enforces a *different* obligation per tier, so a lie here fails
+    #: conformance rather than degrading quietly.
+    determinism: DeterminismTier = DeterminismTier.TRANSCRIPT_ANCHORED
+
+    #: Which input digests must be recorded for ``feed_pinned`` adapters.
+    #: Each entry names a digest the adapter must capture and return in
+    #: :attr:`ScanResult.feed_digest` (or record in its transcript).  Ignored
+    #: for non-feed-pinned tiers.
+    pinned_inputs: tuple[str, ...] = ()
+
+    #: The class of analysis (sast / sca / secret / iac / recon / dast).
+    category: ScannerCategory = ScannerCategory.SAST
+
+    #: Endpoints the scanner dials out to (if any).  When non-empty,
+    #: :meth:`enforce_network_policy` consults the active airgap policy at
+    #: scan time and raises ``NetworkPolicyDenied`` if a destination is blocked.
+    external_endpoints: tuple[tuple[str, int], ...] = ()
+
+    def __init__(self) -> None:
+        self._rate_limit_meter: RateLimitMeter | None = None
+
+    # --- inherited network + rate-limit infra ------------------------------
+
+    def enforce_network_policy(self, *extra_endpoints: tuple[str, int | None]) -> None:
+        """Refuse to scan when a declared or per-call endpoint is denied by the policy.
+
+        Checks the class-level :attr:`external_endpoints` declaration (fixed
+        destinations known at import time, e.g. a cloud API) plus any
+        ``extra_endpoints`` the caller passes in - the concrete destination a
+        per-call scan is actually about to dial, for adapters like Nmap whose
+        target is a caller-supplied argument rather than a class attribute.
+
+        No-op when neither yields anything to check (pure local scanner) or
+        when the policy is unrestricted.
+        """
+        endpoints: tuple[tuple[str, int | None], ...] = tuple(self.external_endpoints) + extra_endpoints
+        if not endpoints:
+            return
+        from bernstein.core.security.network_policy import policy_from_env
+
+        policy = policy_from_env()
+        for host, port in endpoints:
+            policy.check(host, port, source=f"scanner:{self.name()}")
+
+    @property
+    def rate_limit_meter(self) -> RateLimitMeter:
+        """Return the per-adapter rate-limit meter, instantiated on first use."""
+        if self._rate_limit_meter is None:
+            adapter_name = self.name() or type(self).__name__.lower()
+            self._rate_limit_meter = RateLimitMeter(adapter_name=adapter_name)
+        return self._rate_limit_meter
+
+    def record_rate_limit_hit(self, *, error_code: str = "") -> None:
+        """Convenience hook for adapter rate-limit handlers."""
+        record_rate_limit_hit(self.rate_limit_meter, error_code=error_code)
+
+    # --- the two methods every scanner must implement ----------------------
+
+    @abstractmethod
+    def name(self) -> str:
+        """Return the stable registry key for this scanner (e.g. ``"grype"``)."""
+        ...
+
+    @abstractmethod
+    def scan(self, target: Path, scope: ScanScope, workdir: Path) -> ScanResult:
+        """Run the analysis and return its findings.
+
+        Args:
+            target: The file or directory to scan.
+            scope: What the scan is allowed to touch (roots, globs, config).
+            workdir: A writable directory for transcripts / temp artifacts.
+
+        Returns:
+            A :class:`ScanResult` carrying the findings (and, for pinned /
+            transcript tiers, the recorded digest / transcript).
+        """
+        ...
+
+    # --- helpers for subclasses --------------------------------------------
+
+    def _digests_for_pinned_inputs(self, scope: ScanScope) -> dict[str, str]:
+        """Compute the declared pinned-input digests for ``feed_pinned`` adapters.
+
+        Default implementation hashes everything reachable under each
+        ``ScanScope.root`` plus the JSON-serialised scope config.  Adapters with
+        feed sources the default cannot see (a remote ruleset URL, a pinned
+        package index) override this to capture those digests.
+
+        Returns:
+            ``{pinned_input_name: digest}`` for each declared entry in
+            :attr:`pinned_inputs`.  Entries that cannot be resolved are absent
+            so the conformance check can tell which pins were missed.
+        """
+        import hashlib
+
+        digests: dict[str, str] = {}
+        for name in self.pinned_inputs:
+            h = hashlib.sha256()
+            for root in scope.roots:
+                if root.is_dir():
+                    for p in sorted(root.rglob("*")):
+                        if p.is_file():
+                            h.update(p.read_bytes())
+                elif root.is_file():
+                    h.update(root.read_bytes())
+            h.update(repr(sorted(scope.config.items())).encode("utf-8"))
+            digests[name] = h.hexdigest()
+        return digests
+
+    def __iter__(self) -> Iterator[Finding]:
+        """Not iterable; present only to satisfy structural typing checks."""
+        raise TypeError("ScannerAdapter is not iterable")

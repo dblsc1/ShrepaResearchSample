@@ -1,0 +1,156 @@
+# In-process verification gates
+
+Verification normally happens *after* a worker finishes: the scheduler
+inspects results and re-dispatches on failure, paying a full round-trip for
+every miss. A gate-capable adapter instead wires blocking hooks into the
+worker's own runtime so the required checks run **inside the session**,
+before the worker's turn ends.
+
+## What it does
+
+For a gate-capable adapter, Bernstein renders two hooks at spawn time:
+
+| Hook | Trigger | Behaviour |
+|---|---|---|
+| Tool-permission matcher | `PreToolUse` on `Write` / `Edit` / `MultiEdit` / `NotebookEdit` | Refuses a write whose target falls outside the task's path allowlist. Realpath containment refuses a `..` traversal or an in-scope symlink that resolves outside the worktree. |
+| Completion gate | `Stop` | Runs the task's *required* evidence producers in-session; refuses to let the turn end while any of them fail. |
+| Interactive approval gate | `PreToolUse` | Puts a tool call the classifier does not auto-decide to the operator, and blocks the agent until it is resolved or the TTL expires. Off unless `approvals.interactive` is set. |
+
+Both hooks shell out to:
+
+```
+bernstein hook-gate check --session <id> --event PreToolUse < event.json
+bernstein hook-gate check --session <id> --event Stop < event.json
+```
+
+The command reads the hook event JSON on stdin, evaluates the policy
+persisted at `.sdd/runtime/hook_gate/<session>.json` (written at spawn time
+from the task's `owned_files` and required `evidence_producers`), and exits
+`2` to block or `0` to allow.
+
+## Which adapters support it
+
+Only adapters with a genuine blocking hook surface are wired up. Currently:
+`claude` and `claude_routine`. Every other adapter renders no gate hooks and
+degrades to the scheduler-side gate with no policy weakening — there is no
+partial or best-effort in-process enforcement for an adapter that lacks the
+surface.
+
+## Trust model
+
+The in-process gate is **defence in depth and a cost optimisation**, not a
+replacement for the authoritative check. The scheduler-side evidence gate
+(`bernstein evidence show` / `verify`) remains authoritative and runs
+regardless of what happened in-session.
+
+Every gate outcome — a blocked completion or a refused out-of-scope write —
+is sealed as the same signed, chain-anchored evidence bundle the
+scheduler-side gate produces (via `bernstein audit verify`). A downstream
+verifier cannot tell from the receipt schema whether enforcement fired
+in-process or scheduler-side.
+
+## Failure handling
+
+Enforcement is fail-open on unexpected errors: a bug while sealing a receipt
+must never wedge a worker, so sealing failures are logged and swallowed —
+but a computed block/allow decision is always emitted from the check itself.
+An unsafe or unrecognised session id degrades to allow-through rather than
+touching the filesystem with an unvalidated path.
+
+A policy that enforces nothing (no path allowlist, no required producers) is
+a pass-through: both hooks always allow.
+
+## Source
+
+`src/bernstein/adapters/hook_gate_render.py` (hook rendering per adapter),
+`src/bernstein/core/security/hook_gate.py` (policy model and gate
+evaluation), `src/bernstein/cli/commands/hook_gate_cmd.py`
+(`bernstein hook-gate check`).
+
+
+## Interactive tool-call approvals
+
+Opt-in. With `approvals.interactive: false` — the default — nothing below
+happens and the `PreToolUse` hook behaves exactly as it did before.
+
+```yaml
+# bernstein.yaml
+approvals:
+  interactive: true
+  timeout_seconds: 600      # TTL; expiry denies, it does not hang
+  smart_auto_approve: false # a classifier APPROVE verdict skips human review
+```
+
+With it on, a tool call reaching the `PreToolUse` hook is decided in this
+order, and only a call none of these settle reaches the operator:
+
+| Step | Outcome |
+|---|---|
+| Per-tool permission policy | A fail-closed profile rejects here regardless of whether approvals are on, so turning the queue off cannot bypass it. |
+| Classifier deny-list | Denies unconditionally, headless included. |
+| Classifier APPROVE | Skips the queue **only** when `smart_auto_approve` is set. |
+| Classifier ASK | Falls through to human review — this is what enqueues. |
+| Always-allow list | A matching tool+args pattern proceeds without asking. |
+| Otherwise | Enqueued as a pending approval; the hook blocks. |
+
+The classifier deny-list covers shell writes into the control plane
+(`.sdd/`, `.bernstein/`): redirects (`>`, `>>`, `>|`, `&>`, `N>`) and
+file-writing tools (`cp`, `mv`, `tee`, `install`, `rsync`, `sed -i`, ...)
+are denied whether the target is relative, `./`-prefixed, absolute or quoted.
+A redirect or write target containing a `..` segment is denied as well: an
+agent works in a worktree under `.sdd/worktrees/<session>/`, so a path that
+climbs out of it reaches the control plane without naming it, and the
+classifier has no working directory to prove otherwise.
+
+While a call is pending it is visible to all three resolution surfaces, which
+share one queue under `.sdd/runtime/approvals`:
+
+```
+GET  /approvals/queue              # HTTP
+POST /approvals/{id}/resolve
+bernstein approve --tool           # CLI
+```
+
+...plus the TUI `ApprovalPanel`, which polls the same queue. Resolving through
+any of them releases the same pending.
+
+### Who resolved it
+
+Every resolution names a principal: an identifier, how it was authenticated,
+and the session or grant it acted under. There is no default, so a surface
+that cannot name the decider cannot resolve.
+
+| Surface | Identifier | Authentication method |
+|---|---|---|
+| HTTP with scoped tokens configured | the token's principal | `scoped-token` |
+| HTTP with no tokens configured (loopback posture) | `dashboard-operator` | `loopback` |
+| CLI and TUI | `os-user:<name>` | `local-shell` |
+| TTL expiry, sweeper, policy deny, classifier auto-decision | `system:<component>` | `server-internal` |
+
+An HTTP request that presents no valid token while scoped tokens *are*
+configured is refused with `401` rather than resolved against an unnamed
+caller. The `system:` namespace is reserved: a human principal may not use it
+and a server-internal one must, so a decision the software made cannot be read
+as a person's. The principal is written to the resolution sentinel under
+`.sdd/runtime/approvals` and to the `human_approval_decision` audit-chain
+event, whose actor is the principal's identifier.
+
+The agent observes the decision as the hook's exit code: an allow (or an
+always-allow promotion) lets the call proceed, a reject refuses it with the
+operator's reason on stderr, and **TTL expiry is a denial, not a hang** — the
+worker is never left waiting on an operator who never came back.
+
+### Coverage caveat
+
+The `PreToolUse` matcher is registered for write tools only
+(`Write|Edit|MultiEdit|NotebookEdit`), so those are the calls the gate
+currently sees. Bash and other tools do not reach it, even though the
+classifier is largely written about shell commands. Widening the matcher is a
+separate change.
+
+### Failure posture
+
+An infrastructure failure inside the gate degrades to allow-through, matching
+this command's existing behaviour for an unreadable policy: the authoritative
+scheduler-side gate stays the sole enforcement point. A reject decision is not
+an infrastructure failure and always blocks.

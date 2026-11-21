@@ -1,0 +1,247 @@
+# Skill catalog with signed manifest installs
+
+The skill catalog promotes the same browse / list / search / install /
+upgrade / info / status surface that `bernstein mcp catalog` already
+ships - this time for skill packs. Catalog entries point at installable
+sources (github, git, npm, file, directory) and carry a content digest
+plus an optional Ed25519 signature so the operator (or an auditor) can
+prove what bytes landed in `.bernstein/skills/`.
+
+## Commands
+
+```
+bernstein skills catalog browse
+bernstein skills catalog list
+bernstein skills catalog list-installed
+bernstein skills catalog search <query>
+bernstein skills catalog info <id>
+bernstein skills catalog install <id> [--allow-unverified] [--refresh] [--scope project|user]
+bernstein skills catalog upgrade <id> [--all] [--allow-unverified]
+bernstein skills catalog uninstall <id>
+bernstein skills catalog sync
+bernstein skills catalog status
+```
+
+All commands honour `--scope project` (writes into
+`<cwd>/.bernstein/skills/`) or `--scope user`
+(`~/.bernstein/skills/`). The default is `project`.
+
+## Catalog sources
+
+No catalog network request is made until a `bernstein skills catalog`
+command runs. The built-in source is the operator-published catalog at
+`https://bernstein.run/skills-catalog.json`, with a read-only mirror at
+`https://raw.githubusercontent.com/chernistry/bernstein-skills-catalog/main/skills-catalog.json`
+used as a fallback when the primary is unreachable.
+The URL is validated as HTTPS before fetch, and fetched payloads must
+match the signed catalog schema before they are cached or used.
+
+## Manifest schema
+
+A catalog entry is a strict JSON object. Unknown fields reject the
+fetch, identical to the MCP catalog schema:
+
+```json
+{
+  "id": "code-review",
+  "name": "code-review",
+  "version": "1.0.0",
+  "description": "Review code diffs and surface risk hot-spots.",
+  "source": {
+    "kind": "github",
+    "repo": "acme/code-review-skill",
+    "tag": "v1.0.0"
+  },
+  "content_digest": "<64-char hex SHA-256>",
+  "signature": "<base64url Ed25519>",
+  "verified": true,
+  "tags": ["review", "security"]
+}
+```
+
+Supported `source.kind` values: `github`, `git`, `npm`, `file`,
+`directory`. Each variant maps onto the existing
+[`plugin_installer`](https://github.com/sipyourdrink-ltd/bernstein/blob/main/src/bernstein/core/plugins_core/plugin_installer.py)
+implementation; the catalog does not introduce new download or extract
+logic.
+
+## Signature workflow
+
+1. The publisher generates an Ed25519 keypair via
+   `bernstein.core.skills.catalog.generate_signer_keypair()` (thin
+   wrapper around the lineage layer's existing primitive).
+2. The publisher signs each entry with `sign_entry(entry, private_pem)`
+   and attaches the base64url-encoded signature on the `signature`
+   field.
+3. The catalog publishes the matching public key on the top-level
+   `signer_pubkey` field.
+4. The install path runs `verify_entry(entry, signer_pubkey)`. An entry
+   without a signature, or with a signature that does not verify, is
+   refused unless the operator passes `--allow-unverified`. An
+   unverified install still proceeds but the audit event records
+   `manifest_signer_pubkey=null`.
+
+The signed payload is the canonical JSON of the entry, deliberately
+excluding the `signature` and `verified` fields so the signature is
+neither self-referential nor sensitive to operator-side flags.
+
+## Trust gate on install
+
+A skill body is prompt-space code: whatever it says steers the agent that
+loads it. Catalog content is third-party, so the install path promotes a
+fetched entry only after `lint_skill()` clears it. Promotion runs under
+strict lint, so any ERROR finding refuses the install:
+
+| Finding code         | What it catches                                                                 |
+|----------------------|---------------------------------------------------------------------------------|
+| `prompt-space-risk`  | Exfiltration-shaped instructions, credential-file asks, approval-bypass phrasing |
+| `invalid-manifest`   | Frontmatter that does not validate against the skill manifest schema             |
+| `unsafe-reference-path` / `missing-reference` | Declared bucket paths that escape the skill root or do not exist |
+| `sensitive-pattern`  | Invisible Unicode codepoints (a likely prompt-injection payload)                 |
+
+The gate runs against the staging copy, before the atomic swap into
+`.bernstein/skills/<name>/`. A refused entry therefore leaves nothing on
+disk: no skill directory, no `skills.lock` row, no install receipt. An
+already-installed clean version of the same skill is untouched.
+
+Each refusal appends a `skill.verification_refusal` event to the audit
+chain with `stage="install"`, the skill id and version, the offending
+lint findings in `detail`, and a `reason_code` of `prompt_space_risk`
+when a `prompt-space-risk` finding is present or `lint_error` otherwise.
+"Why was this skill refused?" is answerable offline from the chain.
+
+Local installs (`bernstein skills install <path>`) keep their existing
+posture: lint is advisory unless the operator passes `--strict`. The
+strictness is tied to the content being third-party, not to the command.
+
+## Audit chain integration
+
+Every install / upgrade / uninstall appends an HMAC-chained event under
+`.sdd/audit/`, reusing the same
+[`AuditLog`](https://github.com/sipyourdrink-ltd/bernstein/blob/main/src/bernstein/core/security/audit.py)
+chain documented in [audit-log.md](../security/audit-log.md) (chain
+construction, verification, recovery). The catalog-specific event types:
+
+| Event type                 | Payload fields                                                                                                |
+|----------------------------|---------------------------------------------------------------------------------------------------------------|
+| `skill.catalog.fetch`      | `source_url`, `from_cache`, `revalidated`                                                                     |
+| `skill.catalog.install`    | `manifest_url`, `manifest_sha256`, `manifest_signer_pubkey`, `install_id`, `prev_chain_digest`                |
+| `skill.catalog.upgrade`    | `from_version`, `to_version`, `manifest_url`, `manifest_sha256`, `install_id`, `prev_chain_digest`            |
+| `skill.catalog.uninstall`  | (none)                                                                                                        |
+| `skill.catalog.sync`       | `lockfile_digest`, `lineage_receipt`                                                                          |
+
+Reverting and re-running the chain pulls the identical manifest sha; the
+install refuses if the upstream sha drifted (a guard against silent
+upstream rewrites).
+
+## Lockfile and lineage receipts
+
+The lifecycle's `skills.lock` is extended with two additional TOML
+arrays:
+
+```toml
+[[catalog]]
+id = "code-review"
+name = "code-review"
+version = "1.0.0"
+manifest_url = "github://acme/code-review-skill@v1.0.0"
+manifest_sha256 = "..."
+content_digest = "..."
+install_id = "..."
+chain_head = "..."
+installed_at = "2026-05-21T00:00:00+00:00"
+
+[[lineage_receipt]]
+worktree_id = "..."
+action = "install"   # one of: install, adopt, pin
+entry_id = "code-review"
+from_chain_head = "0000..."
+to_chain_head = "..."
+manifest_sha256 = "..."
+timestamp = "2026-05-21T00:00:00+00:00"
+```
+
+Writes are atomic (`Path.replace` on a sibling `.tmp` file) so a
+concurrent reader either sees the old or the new state - never a partial
+write. Two parallel worktrees launched from the same chain head observe
+identical lockfile digests; an upgrade applied to one worktree produces
+a `RECEIPT_ADOPT` receipt that the sibling can consult to decide
+deterministically between `RECEIPT_ADOPT` (re-run the install) or
+`RECEIPT_PIN` (stay on the prior chain head).
+
+## CI lineage gate
+
+`bernstein.core.lineage.gate.check_skill_lockfile` extends the existing
+lineage-v1 gate (it does NOT add a new gate). The check passes when
+every `[[catalog]]` row's `manifest_sha256` is present in the audit
+chain's known-good set; a row whose sha is not anchored fails CI.
+
+```python
+from bernstein.core.lineage.gate import check_skill_lockfile
+
+result = check_skill_lockfile(
+    Path("skills.lock"),
+    frozenset(auditor.known_good_manifest_shas()),
+)
+if not result.ok:
+    raise SystemExit("\n".join(result.failures))
+```
+
+## Cache and TTL
+
+The fetcher caches the upstream catalog in one user-level file,
+`$XDG_CACHE_HOME/bernstein/skills-catalog.json` (or
+`~/.cache/bernstein/skills-catalog.json` when `XDG_CACHE_HOME` is unset).
+Every worker and worktree reads the same file, so parallel agents resolve
+the same digests and the same signed revocations. Set
+`BERNSTEIN_SKILLS_CATALOG_CACHE_PATH` to put the cache somewhere else.
+
+The cache TTL defaults to 6 hours; operators override it via
+`BERNSTEIN_SKILLS_CATALOG_TTL` (seconds). Inside the TTL a fetch makes no
+request. After it, the request carries `If-None-Match` and a `304` reuses
+the cached copy. A body that fails validation is remembered by its `ETag`,
+so it is not downloaded again until it changes. A stale fetch on a 5xx
+upstream serves the last validated copy instead of failing.
+
+Releases before this one cached the catalog per project under
+`.sdd/skills_catalog/catalog.json`. Spawn-time revocation enforcement
+still reads that file until the shared cache holds a valid catalog, so
+revocations cached there keep applying across the upgrade.
+
+## Drift detection
+
+`bernstein skills catalog sync` recomputes the on-disk content digest
+for every installed catalog skill and reports rows that do not match the
+lockfile. Drift indicates either a manual edit under
+`.bernstein/skills/<name>/` or an upstream rewrite; either is
+operator-actionable, never silently re-installed.
+
+## Agent Plugins directory installs (#3772)
+
+A separate, local-only path: `bernstein skills install <dir>` detects an
+Agent Plugins v1.0.0 directory layout (root `plugin.json` with `name`
+and `skills` fields - strict check, so an unrelated directory that
+happens to contain a `skills/` folder is not mistaken for a plugin) and
+installs every conformant `skills/<name>/SKILL.md` in one invocation.
+
+Installs go through the same lifecycle as a single local skill
+(`install_local`) and land in the same `skills.lock` with `source =
+"plugin"` and the content digest, so `bernstein skills sync` and the
+drift checks treat them like any other local install. A malformed skill
+inside the pack is skipped with a diagnostic naming it rather than
+aborting the whole install. No MCP server registration happens here -
+that is the sibling slice (#3540, out of scope for #3772).
+
+A skill whose name already holds a lock row from a **different** source -
+`bernstein-skills.toml` - is refused, with
+the reason naming the source it would have replaced (#4503). Overwriting it
+would delete an install the operator chose deliberately and flip that row's
+provenance to `"plugin"`, letting a pack shadow a trusted skill without
+saying so. Pass `--force` to take the plugin's copy anyway:
+
+```
+bernstein skills install ./my-pack --force
+```
+
+A same-source reinstall - drift heal, or upgrading a pack already recorded as
+`source = "plugin"` - is unaffected and stays silent.

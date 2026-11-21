@@ -1,0 +1,506 @@
+"""Tests for the DLP scanner (dlp_scanner.py).
+
+Covers:
+- License violation detection: SPDX identifiers, copyright headers,
+  "all rights reserved" notices, GPL boilerplate
+- Regulated data detection: NPI numbers, ICD-10 codes, MRNs, DEA numbers,
+  health plan IDs, dates of birth
+- Proprietary data detection: RFC-1918 addresses, internal hostnames,
+  customer ID UUIDs, production DB connection patterns
+- Allowlist / false-positive suppression
+- Diff mode: only added lines are inspected
+- Config flags: block_license_violations, block_regulated_data, etc.
+- Module-level helpers: scan_text_for_dlp, scan_diff_for_dlp
+- DLPScanResult.format_report
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import pytest
+from bernstein.core.dlp_scanner import (
+    DLPConfig,
+    DLPScanner,
+    DLPScanResult,
+    scan_diff_for_dlp,
+    scan_text_for_dlp,
+)
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _scanner(config: DLPConfig | None = None) -> DLPScanner:
+    return DLPScanner(config or DLPConfig())
+
+
+def _has_rule(result: DLPScanResult, rule: str) -> bool:
+    return any(f.rule == rule for f in result.findings)
+
+
+# ---------------------------------------------------------------------------
+# License violation detection
+# ---------------------------------------------------------------------------
+
+
+class TestLicenseViolations:
+    def test_spdx_identifier_detected(self) -> None:
+        text = "// SPDX-License-Identifier: Apache-2.0"
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "spdx_identifier")
+
+    def test_spdx_identifier_gpl_detected(self) -> None:
+        text = "# SPDX-License-Identifier: GPL-3.0-or-later"
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "spdx_identifier")
+
+    def test_copyright_header_detected(self) -> None:
+        text = "# Copyright (c) 2023 Acme Corp"
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "copyright_header")
+
+    def test_copyright_year_range_detected(self) -> None:
+        text = "// Copyright 2020-2024 ExternalProject authors"
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "copyright_header")
+
+    def test_all_rights_reserved_detected(self) -> None:
+        text = "All rights reserved."
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "all_rights_reserved")
+
+    def test_gpl_notice_detected(self) -> None:
+        text = "This file is released under the GNU General Public License."
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "gpl_notice")
+
+    def test_agpl_notice_detected(self) -> None:
+        text = "Licensed under the GNU Affero General Public License, version 3."
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "gpl_notice")
+
+    def test_license_violations_block_merge_by_default(self) -> None:
+        text = "# SPDX-License-Identifier: MIT"
+        result = _scanner().scan_text(text)
+        assert result.has_blocks is True
+        block_findings = [f for f in result.findings if f.block_merge]
+        assert block_findings
+
+    def test_license_violations_no_block_when_disabled(self) -> None:
+        config = DLPConfig(block_license_violations=False)
+        text = "# SPDX-License-Identifier: MIT"
+        result = DLPScanner(config).scan_text(text)
+        assert result.has_blocks is False
+
+    def test_license_check_disabled(self) -> None:
+        config = DLPConfig(check_license_violations=False)
+        text = "# SPDX-License-Identifier: MIT"
+        result = DLPScanner(config).scan_text(text)
+        assert not _has_rule(result, "spdx_identifier")
+
+
+# ---------------------------------------------------------------------------
+# Regulated data (PHI) detection
+# ---------------------------------------------------------------------------
+
+
+class TestRegulatedData:
+    def test_npi_number_detected(self) -> None:
+        text = "npi = '1234567890'"
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "npi_number")
+
+    def test_npi_explicit_label_detected(self) -> None:
+        text = 'national_provider_identifier: "9876543210"'
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "npi_number")
+
+    def test_icd10_code_detected(self) -> None:
+        text = 'diagnosis_code = "J18.9"'
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "icd10_code")
+
+    def test_icd10_plain_label_detected(self) -> None:
+        text = "icd_10: A01.0"
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "icd10_code")
+
+    def test_mrn_detected(self) -> None:
+        text = 'mrn = "12345678"'
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "mrn")
+
+    def test_patient_id_detected(self) -> None:
+        text = "patient_id: 987654321"
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "mrn")
+
+    def test_dea_number_detected(self) -> None:
+        text = 'dea_number = "AB1234567"'
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "dea_number")
+
+    def test_health_plan_id_detected(self) -> None:
+        text = 'member_id = "ABCD12345678"'
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "health_plan_id")
+
+    def test_date_of_birth_detected(self) -> None:
+        text = 'dob = "1985-06-15"'
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "date_of_birth")
+
+    def test_regulated_data_blocks_merge_by_default(self) -> None:
+        text = 'mrn = "12345678"'
+        result = _scanner().scan_text(text)
+        assert result.has_blocks is True
+
+    def test_regulated_data_no_block_when_disabled(self) -> None:
+        config = DLPConfig(block_regulated_data=False)
+        text = 'mrn = "12345678"'
+        result = DLPScanner(config).scan_text(text)
+        assert result.has_blocks is False
+
+    def test_regulated_data_check_disabled(self) -> None:
+        config = DLPConfig(check_regulated_data=False)
+        text = 'mrn = "12345678"'
+        result = DLPScanner(config).scan_text(text)
+        assert not _has_rule(result, "mrn")
+
+    def test_credit_card_number_labeled_detected(self) -> None:
+        text = 'card_number = "4111111111111111"'
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "credit_card_number")
+
+    def test_credit_card_pan_label_detected(self) -> None:
+        text = 'pan = "4111-1111-1111-1111"'
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "credit_card_number")
+
+    def test_credit_card_blocks_merge_by_default(self) -> None:
+        text = 'cc_number = "5500005555555559"'
+        result = _scanner().scan_text(text)
+        assert result.has_blocks is True
+        assert any(f.rule == "credit_card_number" and f.block_merge for f in result.findings)
+
+    def test_us_ssn_labeled_detected(self) -> None:
+        text = 'ssn = "123-45-6789"'
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "us_ssn")
+
+    def test_us_ssn_bare_pattern_detected(self) -> None:
+        text = "Employee SSN: 987-65-4321"
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "us_ssn")
+
+    def test_us_ssn_blocks_merge_by_default(self) -> None:
+        text = 'social_security_number = "234-56-7890"'
+        result = _scanner().scan_text(text)
+        assert result.has_blocks is True
+
+    def test_ssn_in_diff_added_line_detected(self) -> None:
+        diff = '+ssn = "111-22-3333"\n'
+        result = _scanner().scan_diff(diff)
+        assert _has_rule(result, "us_ssn")
+
+    def test_same_rule_reported_for_each_occurrence_across_lines(self) -> None:
+        diff = '+ssn_alice = "123-45-6789"\n+some unrelated line\n+ssn_bob = "987-65-4321"\n'
+        result = _scanner().scan_diff(diff)
+        ssn_findings = [f for f in result.findings if f.rule == "us_ssn"]
+        assert len(ssn_findings) == 2
+        assert {f.line_number for f in ssn_findings} == {1, 3}
+
+
+# ---------------------------------------------------------------------------
+# Proprietary data detection
+# ---------------------------------------------------------------------------
+
+
+class TestProprietaryData:
+    def test_private_ip_10_detected(self) -> None:
+        text = "host = 10.0.1.5"
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "private_ip_address")
+
+    def test_private_ip_172_detected(self) -> None:
+        text = "endpoint = 172.16.0.1"
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "private_ip_address")
+
+    def test_private_ip_192_168_detected(self) -> None:
+        text = "server = 192.168.0.100"
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "private_ip_address")
+
+    def test_public_ip_not_detected(self) -> None:
+        text = "endpoint = 203.0.113.1"
+        result = _scanner().scan_text(text)
+        assert not _has_rule(result, "private_ip_address")
+
+    def test_internal_hostname_detected(self) -> None:
+        text = "db_host = mydb.internal"
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "internal_hostname")
+
+    def test_corp_hostname_detected(self) -> None:
+        text = "api_url = https://api.mycompany.corp/v1"
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "internal_hostname")
+
+    def test_customer_id_uuid_detected(self) -> None:
+        text = 'customer_id = "550e8400-e29b-41d4-a716-446655440000"'
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "customer_id")
+
+    def test_account_id_uuid_detected(self) -> None:
+        text = 'account_id: "123e4567-e89b-12d3-a456-426614174000"'
+        result = _scanner().scan_text(text)
+        assert _has_rule(result, "customer_id")
+
+    def test_proprietary_data_no_block_by_default(self) -> None:
+        # Proprietary data findings should warn but NOT block by default.
+        text = "host = 10.0.1.5"
+        result = _scanner().scan_text(text)
+        prop_findings = [f for f in result.findings if f.category == "proprietary_data"]
+        assert prop_findings
+        assert all(not f.block_merge for f in prop_findings)
+
+    def test_proprietary_data_blocks_when_config_set(self) -> None:
+        config = DLPConfig(block_proprietary_data=True)
+        text = "host = 10.0.1.5"
+        result = DLPScanner(config).scan_text(text)
+        assert result.has_blocks is True
+
+    def test_proprietary_check_disabled(self) -> None:
+        config = DLPConfig(check_proprietary_data=False)
+        text = "host = 10.0.1.5"
+        result = DLPScanner(config).scan_text(text)
+        assert not _has_rule(result, "private_ip_address")
+
+    def test_custom_internal_url_pattern(self) -> None:
+        config = DLPConfig(internal_url_patterns=["*.acmecorp.io"])
+        text = "url = https://svc.acmecorp.io/api"
+        result = DLPScanner(config).scan_text(text)
+        assert any("custom_internal_url" in f.rule for f in result.findings)
+
+
+# ---------------------------------------------------------------------------
+# Allowlist / false-positive suppression
+# ---------------------------------------------------------------------------
+
+
+class TestAllowlist:
+    def test_example_com_suppressed(self) -> None:
+        text = "host = api.example.com"
+        result = _scanner().scan_text(text)
+        # internal_hostname should NOT trigger for example.com (allowlisted)
+        assert not _has_rule(result, "internal_hostname")
+
+    def test_localhost_suppressed(self) -> None:
+        text = "db_host = localhost"
+        result = _scanner().scan_text(text)
+        # Should not trigger internal hostname
+        assert not _has_rule(result, "internal_hostname")
+
+    def test_fake_prefix_suppresses_customer_id(self) -> None:
+        text = 'customer_id = "FAKE-550e8400-e29b-41d4-a716-446655440000"'
+        result = _scanner().scan_text(text)
+        assert not _has_rule(result, "customer_id")
+
+    def test_test_prefix_suppresses_finding(self) -> None:
+        text = 'mrn = "TEST12345678"'
+        result = _scanner().scan_text(text)
+        assert not _has_rule(result, "mrn")
+
+    def test_custom_allowlist_pattern(self) -> None:
+        config = DLPConfig(allowlist_patterns=[r"(?i)synthetic_data"])
+        text = "# synthetic_data: mrn = 12345678"
+        result = DLPScanner(config).scan_text(text)
+        assert not _has_rule(result, "mrn")
+
+
+class TestAllowlistIsScopedToTheFlaggedValue:
+    """A benign marker exempts the value it is part of, never its neighbours.
+
+    The built-in allowlist used to be checked against the whole line before any
+    rule ran, so an email, ``localhost`` or the word "placeholder" anywhere on a
+    line hid every finding on it -- a real SSN or card number included, and
+    those are the findings that hard-block a merge.
+    """
+
+    REAL_SSN = 'ssn = "123-45-6789"'
+
+    @pytest.mark.parametrize(
+        "marker",
+        [
+            "user@acme.io",
+            "test@acme.io",
+            "admin@acme.io",
+            "noreply@acme.io",
+            "example.com",
+            "localhost",
+            "127.0.0.1",
+            "0.0.0.0",
+            "placeholder",
+            "changeme",
+            "your_api_key",
+            "xxxx",
+        ],
+    )
+    def test_a_benign_marker_elsewhere_on_the_line_does_not_hide_an_ssn(self, marker: str) -> None:
+        result = _scanner().scan_text(f"{self.REAL_SSN}  # {marker}")
+        assert _has_rule(result, "us_ssn")
+        assert result.has_blocks
+
+    def test_a_record_carrying_an_email_and_an_ssn_blocks(self) -> None:
+        result = _scanner().scan_text('record = {"email": "user@acme.io", "ssn": "123-45-6789"}')
+        assert _has_rule(result, "us_ssn")
+        assert result.has_blocks
+
+    def test_a_card_number_beside_a_placeholder_comment_blocks(self) -> None:
+        result = _scanner().scan_text('card_number = "4111 1111 1111 1111"  # swap the placeholder later')
+        assert _has_rule(result, "credit_card_number")
+        assert result.has_blocks
+
+    def test_a_fake_prefixed_value_is_still_suppressed(self) -> None:
+        """The exemption still works where the marker is part of the value.
+
+        The unprefixed line is asserted too: without it this test would pass on
+        a scanner that flags nothing at all.
+        """
+        assert _has_rule(_scanner().scan_text('ssn = "123-45-6789"'), "us_ssn")
+        assert not _has_rule(_scanner().scan_text('ssn = "FAKE-123-45-6789"'), "us_ssn")
+
+    def test_a_benign_value_earlier_on_the_line_does_not_shadow_a_real_one(self) -> None:
+        result = _scanner().scan_text('fixture = "FAKE-111-22-3333"; real = "123-45-6789"')
+        assert _has_rule(result, "us_ssn")
+        (finding,) = [f for f in result.findings if f.rule == "us_ssn"]
+        assert "FAKE" not in finding.redacted_match
+
+    def test_the_projects_own_copyright_header_is_still_suppressed(self) -> None:
+        assert not _has_rule(_scanner().scan_text("Copyright (c) 2026 the Bernstein authors"), "copyright_header")
+        assert _has_rule(_scanner().scan_text("Copyright (c) 2026 the Acme authors"), "copyright_header")
+
+    def test_an_operator_allowlist_pattern_still_suppresses_the_whole_line(self) -> None:
+        """``allowlist_patterns`` is documented as line-wide, and stays so."""
+        config = DLPConfig(allowlist_patterns=[r"dlp:ignore"])
+        result = DLPScanner(config).scan_text(f"{self.REAL_SSN}  # dlp:ignore")
+        assert not result.findings
+
+    def test_the_dlp_scan_gate_blocks_the_mixed_line(self, tmp_path: Path) -> None:
+        """End to end through the gate, which is what a merge actually consults."""
+        from bernstein.core.quality.quality_gates import QualityGatesConfig, _run_dlp_gate
+
+        (tmp_path / "records.py").write_text(
+            'RECORD = {"email": "user@acme.io", "ssn": "123-45-6789"}\n', encoding="utf-8"
+        )
+        result = _run_dlp_gate(QualityGatesConfig(), tmp_path, changed_files=["records.py"])
+        assert result.blocked
+        assert not result.passed
+
+
+# ---------------------------------------------------------------------------
+# Diff mode scanning
+# ---------------------------------------------------------------------------
+
+
+class TestDiffMode:
+    def test_only_added_lines_scanned(self) -> None:
+        diff = """\
+ context line
+-removed: mrn = '12345678'
++added: npi = '1234567890'
+"""
+        result = _scanner().scan_diff(diff)
+        # npi on added line should trigger, not mrn (removed)
+        assert _has_rule(result, "npi_number")
+        assert not _has_rule(result, "mrn")
+
+    def test_diff_header_plus_plus_plus_skipped(self) -> None:
+        diff = """\
++++ b/src/service.py
++npi = '1234567890'
+"""
+        result = _scanner().scan_diff(diff)
+        assert _has_rule(result, "npi_number")
+
+    def test_context_lines_not_scanned(self) -> None:
+        diff = " npi = '1234567890'\n"
+        result = _scanner().scan_diff(diff)
+        assert not _has_rule(result, "npi_number")
+
+    def test_no_findings_clean_diff(self) -> None:
+        diff = """\
++def greet(name: str) -> str:
++    return f"Hello {name}"
+"""
+        result = _scanner().scan_diff(diff)
+        assert not result.findings
+
+
+# ---------------------------------------------------------------------------
+# Module-level helpers
+# ---------------------------------------------------------------------------
+
+
+class TestModuleLevelHelpers:
+    def test_scan_text_for_dlp(self) -> None:
+        result = scan_text_for_dlp('mrn = "12345678"')
+        assert _has_rule(result, "mrn")
+
+    def test_scan_diff_for_dlp(self) -> None:
+        result = scan_diff_for_dlp('+npi = "1234567890"')
+        assert _has_rule(result, "npi_number")
+
+    def test_scan_text_for_dlp_with_config(self) -> None:
+        config = DLPConfig(check_regulated_data=False)
+        result = scan_text_for_dlp('mrn = "12345678"', config=config)
+        assert not _has_rule(result, "mrn")
+
+
+# ---------------------------------------------------------------------------
+# DLPScanResult helpers
+# ---------------------------------------------------------------------------
+
+
+class TestDLPScanResult:
+    def test_empty_result(self) -> None:
+        result = DLPScanResult.empty()
+        assert not result.findings
+        assert not result.has_blocks
+        assert not result.categories_hit
+
+    def test_format_report_no_findings(self) -> None:
+        result = DLPScanResult.empty()
+        assert "no violations" in result.format_report()
+
+    def test_format_report_with_findings(self) -> None:
+        text = '# SPDX-License-Identifier: GPL-3.0\nnpi = "1234567890"'
+        result = _scanner().scan_text(text)
+        report = result.format_report()
+        assert "BLOCK" in report or "WARN" in report
+        assert "license_violation" in report or "regulated_data" in report
+
+    def test_categories_hit_populated(self) -> None:
+        text = '# SPDX-License-Identifier: MIT\nnpi = "1234567890"'
+        result = _scanner().scan_text(text)
+        assert "license_violation" in result.categories_hit
+        assert "regulated_data" in result.categories_hit
+
+
+# ---------------------------------------------------------------------------
+# Global disable
+# ---------------------------------------------------------------------------
+
+
+class TestGlobalDisable:
+    def test_disabled_scanner_returns_empty(self) -> None:
+        config = DLPConfig(enabled=False)
+        result = DLPScanner(config).scan_text('mrn = "12345678"')
+        assert not result.findings
+        assert not result.has_blocks

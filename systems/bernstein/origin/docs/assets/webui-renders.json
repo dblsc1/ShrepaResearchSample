@@ -1,0 +1,16 @@
+{
+  "renders": {
+    "webui-agents-diffs.png": "captured",
+    "webui-agents-panel.png": "captured",
+    "webui-agents.png": "captured",
+    "webui-approvals.png": "captured",
+    "webui-audit.png": "captured",
+    "webui-costs.png": "captured",
+    "webui-fleet.png": "captured",
+    "webui-missions.png": "captured",
+    "webui-settings.png": "captured",
+    "webui-tasks.png": "captured"
+  },
+  "spa_bundle_files": 7,
+  "spa_bundle_sha256": "d255cba30c5f484e6a739f9feff5d2e42466bc0cf9b075f8ac57a2a8010ab3c8"
+}

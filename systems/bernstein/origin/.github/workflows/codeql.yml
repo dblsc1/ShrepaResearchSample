@@ -1,0 +1,90 @@
+name: CodeQL Security Analysis
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "scripts/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/codeql.yml"
+      - ".github/codeql/**"
+  # No `pull_request` trigger, deliberately (#5795). It ran 517 times in one
+  # week for 2 165 job-minutes and gated nothing: branch protection requires
+  # `CI gate` and `shipped bundle matches the lockfile`, not CodeQL. Every
+  # commit that reaches `main` is analysed again by the push run minutes
+  # later, so the pull-request run was a second analysis of the same code
+  # whose only output was an advisory annotation.
+  #
+  # Stated plainly, the cost: a newly introduced finding now surfaces after
+  # the merge rather than before it. Alerts are triaged against the trunk,
+  # which is where the push run and the weekly schedule raise them.
+  schedule:
+    - cron: "0 4 * * 1"  # Weekly Monday 4 AM UTC
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  # Never cancel in flight. Both remaining triggers analyse the trunk, and a
+  # cancelled CodeQL run leaves code scanning in a "CodeQL exited with errors"
+  # configuration-error state and drops that commit's coverage. This was
+  # `github.event_name == 'pull_request'` while pull requests ran; with that
+  # trigger gone the expression could only ever be false.
+  cancel-in-progress: false
+
+# Default-deny at workflow scope; the analyze job re-asserts the narrow
+# writes it actually needs (Scorecard token-permissions).
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python]
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+        with:
+          languages: ${{ matrix.language }}
+          queries: +security-extended
+          config-file: .github/codeql/codeql-config.yml
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+        env:
+          # The only way to load an unpublished model pack that lives in this
+          # repository. `packs:` in the config file resolves names through the
+          # registry, so it cannot see this one; a path there is ignored with a
+          # warning rather than an error, which is why the pack was silently
+          # absent from every analysis between #4426 and #6024. The action
+          # forwards this JSON to the named CodeQL subcommand, so the flags
+          # land on `database run-queries`, after the database already exists.
+          # `--additional-packs` is the directory searched for packs, so it is
+          # the parent of the pack directory, not the pack itself.
+          CODEQL_ACTION_EXTRA_OPTIONS: >-
+            {"database":{"run-queries":[
+            "--additional-packs","${{ github.workspace }}/.github/codeql",
+            "--model-packs","bernstein/codeql-sanitizers"]}}
+        with:
+          category: "/language:${{ matrix.language }}"

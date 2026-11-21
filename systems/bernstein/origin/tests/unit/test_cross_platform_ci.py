@@ -1,0 +1,351 @@
+"""TEST-016: Cross-platform test matrix configuration.
+
+Validates the GitHub Actions CI workflow for cross-platform testing
+and verifies platform-specific code paths work correctly.
+"""
+
+from __future__ import annotations
+
+import platform
+import sys
+from pathlib import Path
+from typing import Any, cast
+
+import yaml
+
+# ---------------------------------------------------------------------------
+# CI workflow validation
+# ---------------------------------------------------------------------------
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+_CI_WORKFLOW = _REPO_ROOT / ".github" / "workflows" / "ci.yml"
+_CROSS_PLATFORM_WORKFLOW = _REPO_ROOT / ".github" / "workflows" / "cross-platform.yml"
+
+# The cross-platform workflow content we generate/validate
+CROSS_PLATFORM_WORKFLOW_CONTENT = {
+    "name": "Cross-Platform Tests",
+    "on": {
+        "push": {"branches": ["main"]},
+        "pull_request": {"branches": ["main"]},
+    },
+    "permissions": {"contents": "read"},
+    "concurrency": {
+        "group": "cross-platform-${{ github.ref }}",
+        "cancel-in-progress": True,
+    },
+    "jobs": {
+        "test": {
+            "strategy": {
+                "fail-fast": False,
+                "matrix": {
+                    "os": ["ubuntu-latest", "macos-latest"],
+                    "python-version": ["3.12", "3.13"],
+                },
+            },
+            "runs-on": "${{ matrix.os }}",
+            "timeout-minutes": 20,
+            "steps": [
+                {"uses": "actions/checkout@v6"},
+                {
+                    "uses": "astral-sh/setup-uv@v7",
+                    "with": {"python-version": "${{ matrix.python-version }}"},
+                },
+                {
+                    "name": "Install dependencies",
+                    "run": "uv pip install -e '.[dev]' --system",
+                },
+                {
+                    "name": "Run tests",
+                    "run": "uv run python scripts/run_tests.py -x",
+                },
+            ],
+        },
+    },
+}
+
+
+def _load_ci_workflow() -> dict[object, Any]:
+    """Load the CI workflow as a typed mapping for assertions."""
+    data = yaml.safe_load(_CI_WORKFLOW.read_text())
+    assert isinstance(data, dict)
+    return cast("dict[object, Any]", data)
+
+
+def _ci_test_steps(data: dict[object, Any]) -> list[dict[str, Any]]:
+    """Return the step list for the main CI test job."""
+    jobs = cast("dict[str, Any]", data["jobs"])
+    test_job = cast("dict[str, Any]", jobs["test"])
+    steps = cast("list[Any]", test_job["steps"])
+    typed_steps: list[dict[str, Any]] = []
+    for raw_step in steps:
+        if isinstance(raw_step, dict):
+            typed_steps.append(cast("dict[str, Any]", raw_step))
+    return typed_steps
+
+
+def _ci_trigger(data: dict[object, Any], event: str) -> dict[str, Any]:
+    """Return the CI workflow trigger block for ``event``."""
+    on_section_raw = data.get(True, data.get("on", {}))
+    on_section = cast("dict[str, Any]", on_section_raw if isinstance(on_section_raw, dict) else {})
+    return cast("dict[str, Any]", on_section.get(event, {}))
+
+
+class TestCIWorkflowExists:
+    """Validate the existing CI workflow file."""
+
+    def test_ci_workflow_exists(self) -> None:
+        assert _CI_WORKFLOW.exists(), "CI workflow file not found"
+
+    def test_ci_workflow_valid_yaml(self) -> None:
+        data = _load_ci_workflow()
+        assert "name" in data
+        assert "jobs" in data
+
+    def test_main_and_macos_test_jobs_share_per_file_timeout(self) -> None:
+        data = _load_ci_workflow()
+        jobs = cast("dict[str, Any]", data["jobs"])
+        test_job = cast("dict[str, Any]", jobs["test"])
+        macos_job = cast("dict[str, Any]", jobs["test-macos"])
+        test_env = cast("dict[str, Any]", test_job.get("env", {}))
+        macos_env = cast("dict[str, Any]", macos_job.get("env", {}))
+
+        timeout_key = "BERNSTEIN_TEST_FILE_TIMEOUT_SECONDS"
+        assert test_env.get(timeout_key) == "600"
+        assert macos_env.get(timeout_key) == test_env[timeout_key]
+
+    def test_ci_runs_on_ubuntu(self) -> None:
+        data = _load_ci_workflow()
+        # At least one job should run on ubuntu
+        has_ubuntu = False
+        jobs = cast("dict[str, Any]", data["jobs"])
+        for _job_name, job in jobs.items():
+            if not isinstance(job, dict):
+                continue
+            typed_job = cast("dict[str, Any]", job)
+            runs_on = str(typed_job.get("runs-on", ""))
+            if "ubuntu" in runs_on:
+                has_ubuntu = True
+                break
+        assert has_ubuntu, "CI should have at least one Ubuntu job"
+
+    def test_ci_uses_main_branch(self) -> None:
+        data = _load_ci_workflow()
+        push = _ci_trigger(data, "push")
+        branches = cast("list[str]", push.get("branches", []))
+        assert "main" in branches, "CI push trigger must include 'main' branch"
+
+    def test_observability_docs_prs_trigger_ci(self) -> None:
+        data = _load_ci_workflow()
+        for event in ("push", "pull_request"):
+            trigger = _ci_trigger(data, event)
+            paths_ignore = cast("list[str]", trigger.get("paths-ignore", []))
+            assert "docs/**" in paths_ignore, f"missing docs/** pattern in {event} paths-ignore: {paths_ignore}"
+            assert "!docs/observability/**" in paths_ignore, (
+                f"missing !docs/observability/** pattern in {event} paths-ignore: {paths_ignore}"
+            )
+            docs_pattern = paths_ignore.index("docs/**")
+            observability_pattern = paths_ignore.index("!docs/observability/**")
+            assert observability_pattern > docs_pattern, (
+                f"!docs/observability/** must follow docs/** in {event} paths-ignore: "
+                f"docs_pattern={docs_pattern}, observability_pattern={observability_pattern}"
+            )
+
+    def test_pull_request_planner_fetches_base_commit_for_impacted_tests(self) -> None:
+        """The shared planner fetches one run-pinned base commit."""
+        data = _load_ci_workflow()
+        jobs = cast("dict[str, Any]", data["jobs"])
+        planner = cast("dict[str, Any]", jobs["plan-affected-tests"])
+        steps = cast("list[dict[str, Any]]", planner["steps"])
+        fetch_steps = [step for step in steps if step.get("name") == "Fetch base commit for impacted-test selection"]
+        assert len(fetch_steps) == 1
+        fetch_step = fetch_steps[0]
+        assert fetch_step.get("if") == "github.event_name == 'pull_request'"
+        env = fetch_step.get("env") or {}
+        assert env.get("BASE_SHA") == "${{ github.event.pull_request.base.sha }}", (
+            "BASE_SHA must be bound via env: to avoid template injection (zizmor)"
+        )
+        run_script = fetch_step.get("run", "")
+        assert "${BASE_SHA}:refs/remotes/origin/pr-base" in run_script
+        assert "refs/heads/" not in run_script
+
+    def test_pull_request_test_job_fetches_head_commit_for_orphan_ratchet_inspection(self) -> None:
+        """The PR head commit is fetched by sha, so orphan-ratchet inspection can see it.
+
+        ``actions/checkout``'s default ``pull_request`` checkout resolves the
+        synthetic merge commit, not the head commit that produced it.
+        ``tests/unit/_orphan_scan.py::pull_request_head_sha`` needs that exact
+        commit object resolvable locally (``git cat-file -e <sha>^{commit}``)
+        to inspect the real PR branch instead of the merge artifact, and
+        raises rather than silently skipping when it is not there (#5565).
+        """
+        data = _load_ci_workflow()
+        steps = _ci_test_steps(data)
+        fetch_steps = [
+            step for step in steps if step.get("name") == "Fetch PR head commit for orphan-ratchet inspection"
+        ]
+        assert len(fetch_steps) == 1
+        fetch_step = fetch_steps[0]
+        assert fetch_step.get("if") == "github.event_name == 'pull_request' && runner.os != 'Windows'"
+        env = fetch_step.get("env") or {}
+        assert env.get("HEAD_SHA") == "${{ github.event.pull_request.head.sha }}", (
+            "HEAD_SHA must be bound via env: to avoid template injection (zizmor)"
+        )
+        run_script = fetch_step.get("run", "")
+        assert "${HEAD_SHA}:refs/remotes/origin/pr-head" in run_script
+        assert all(step.get("name") != "Fetch base commit for impacted-test selection" for step in steps)
+
+    def test_pull_request_test_job_consumes_the_shared_plan(self) -> None:
+        data = _load_ci_workflow()
+        steps = _ci_test_steps(data)
+        run_steps = [step for step in steps if (step.get("name") or "").startswith("Run isolated test suite")]
+        assert run_steps, "expected at least one 'Run isolated test suite' step"
+        unix_steps = [step for step in run_steps if "Linux/macOS" in (step.get("name") or "")]
+        assert len(unix_steps) == 1
+        env = unix_steps[0].get("env") or {}
+        assert env.get("EVENT_NAME") == "${{ github.event_name }}", (
+            "EVENT_NAME must be bound via env: to avoid template injection (zizmor)"
+        )
+        assert "BASE_REF" not in env, "the affected base must come from the run-pinned base sha, not a branch name"
+        run_script = unix_steps[0].get("run", "")
+        assert ".sdd/affected-test-plan/selected.txt" in run_script
+        assert "--affected" not in run_script
+        assert "uv run python scripts/run_tests.py" in run_script
+        assert "--parallel 6" in run_script
+
+    def test_merge_queue_runs_the_whole_list(self) -> None:
+        """A merge group never plans, so every shard runs the full list.
+
+        The group is the last check before main. A tree-wide gate fails on a
+        change no file-level slice maps to it: #5743 passed a sliced group and
+        broke main on the unreachable-controls gate.
+        """
+        data = _load_ci_workflow()
+        jobs = cast("dict[str, Any]", data["jobs"])
+        planner = cast("dict[str, Any]", jobs["plan-affected-tests"])
+        steps = cast("list[dict[str, Any]]", planner["steps"])
+        by_name = {step.get("name"): step for step in steps}
+
+        assert "Resolve the merge-queue batch root" not in by_name
+        assert "merge_group" not in yaml.safe_dump(steps)
+
+        plan = by_name["Compute affected-test plan"]
+        assert plan.get("if") == "github.event_name == 'pull_request'"
+        assert "planned=true" in plan.get("run", "")
+        assert planner["outputs"]["planned"] == "${{ steps.plan.outputs.planned }}"
+
+    def test_merge_queue_test_job_keys_on_the_plan_not_the_event(self) -> None:
+        """Shards select whenever a plan exists, and run the full list when one does not."""
+        data = _load_ci_workflow()
+        steps = _ci_test_steps(data)
+        by_name = {step.get("name"): step for step in steps}
+        planned = "needs.plan-affected-tests.outputs.planned == 'true'"
+
+        assert by_name["Download affected-test plan"].get("if") == f"{planned} && runner.os != 'Windows'"
+        assert by_name["Select affected-test shard"].get("if") == f"{planned} && runner.os != 'Windows'"
+        run = by_name["Run isolated test suite (Linux/macOS)"]
+        assert "needs.plan-affected-tests.outputs.planned != 'true'" in run.get("if", "")
+        assert (run.get("env") or {}).get("PLANNED") == "${{ needs.plan-affected-tests.outputs.planned }}"
+        script = run.get("run", "")
+        assert '[ "${PLANNED}" = "true" ]' in script
+        assert '--shard "${SHARD}/${SHARD_COUNT}"' in script, "no plan still runs the full list, sharded"
+
+    def test_coverage_reporting_only_runs_on_push(self) -> None:
+        data = _load_ci_workflow()
+        steps = _ci_test_steps(data)
+        coverage_steps = [
+            step
+            for step in steps
+            if "3.13 only" in step.get("name", "")
+            or "coverage" in step.get("name", "").lower()
+            or "Codecov" in step.get("name", "")
+        ]
+        assert coverage_steps, "expected coverage-related steps in CI workflow"
+        for step in coverage_steps:
+            condition = step.get("if", "")
+            assert "github.event_name == 'push'" in condition
+
+
+class TestCrossPlatformWorkflowContent:
+    """Validate the generated cross-platform workflow content."""
+
+    def test_has_matrix_strategy(self) -> None:
+        jobs = cast("dict[str, Any]", CROSS_PLATFORM_WORKFLOW_CONTENT["jobs"])
+        job = cast("dict[str, Any]", jobs["test"])
+        strategy = cast("dict[str, Any]", job["strategy"])
+        matrix = cast("dict[str, list[str]]", strategy["matrix"])
+        assert "os" in matrix
+        assert "python-version" in matrix
+
+    def test_includes_macos(self) -> None:
+        jobs = cast("dict[str, Any]", CROSS_PLATFORM_WORKFLOW_CONTENT["jobs"])
+        job = cast("dict[str, Any]", jobs["test"])
+        strategy = cast("dict[str, Any]", job["strategy"])
+        matrix = cast("dict[str, list[str]]", strategy["matrix"])
+        assert "macos-latest" in matrix["os"]
+
+    def test_includes_linux(self) -> None:
+        jobs = cast("dict[str, Any]", CROSS_PLATFORM_WORKFLOW_CONTENT["jobs"])
+        job = cast("dict[str, Any]", jobs["test"])
+        strategy = cast("dict[str, Any]", job["strategy"])
+        matrix = cast("dict[str, list[str]]", strategy["matrix"])
+        assert "ubuntu-latest" in matrix["os"]
+
+    def test_includes_python_312(self) -> None:
+        jobs = cast("dict[str, Any]", CROSS_PLATFORM_WORKFLOW_CONTENT["jobs"])
+        job = cast("dict[str, Any]", jobs["test"])
+        strategy = cast("dict[str, Any]", job["strategy"])
+        matrix = cast("dict[str, list[str]]", strategy["matrix"])
+        assert "3.12" in matrix["python-version"]
+
+    def test_fail_fast_disabled(self) -> None:
+        jobs = cast("dict[str, Any]", CROSS_PLATFORM_WORKFLOW_CONTENT["jobs"])
+        job = cast("dict[str, Any]", jobs["test"])
+        strategy = cast("dict[str, Any]", job["strategy"])
+        assert strategy["fail-fast"] is False
+
+    def test_generates_valid_yaml(self) -> None:
+        """The workflow content must serialize to valid YAML."""
+        dumped = yaml.dump(CROSS_PLATFORM_WORKFLOW_CONTENT, default_flow_style=False)
+        reparsed = yaml.safe_load(dumped)
+        assert reparsed == CROSS_PLATFORM_WORKFLOW_CONTENT
+
+    def test_targets_main_branch(self) -> None:
+        on = cast("dict[str, dict[str, list[str]]]", CROSS_PLATFORM_WORKFLOW_CONTENT["on"])
+        assert "main" in on["push"]["branches"]
+        assert "main" in on["pull_request"]["branches"]
+
+
+# ---------------------------------------------------------------------------
+# Platform compatibility
+# ---------------------------------------------------------------------------
+
+
+class TestPlatformCompatibility:
+    """Test that platform-specific utilities work on the current OS."""
+
+    def test_platform_detected(self) -> None:
+        assert platform.system() in ("Darwin", "Linux", "Windows")
+
+    def test_path_separator(self) -> None:
+        """Path operations work regardless of separator."""
+        p = Path("src") / "bernstein" / "core" / "models.py"
+        assert p.parts[-1] == "models.py"
+
+    def test_python_version_adequate(self) -> None:
+        assert sys.version_info >= (3, 12), "Python 3.12+ required"
+
+    def test_platform_compat_module_importable(self) -> None:
+        """The platform_compat module must be importable everywhere."""
+        from bernstein.core.platform_compat import kill_process_group, process_alive
+
+        assert callable(kill_process_group)
+        assert callable(process_alive)
+
+    def test_signal_handling_available(self) -> None:
+        """Signal handling must be available on this platform."""
+        import signal
+
+        # SIGTERM is available on all supported platforms
+        assert hasattr(signal, "SIGTERM")
+        if platform.system() != "Windows":
+            assert hasattr(signal, "SIGKILL")

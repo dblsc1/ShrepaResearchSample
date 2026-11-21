@@ -1,0 +1,215 @@
+"""Upgrade proposal generation."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import time
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import TYPE_CHECKING
+
+from bernstein.core.models import (
+    Complexity,
+    RiskAssessment,
+    RollbackPlan,
+    Scope,
+    Task,
+    TaskType,
+    UpgradeProposalDetails,
+)
+from bernstein.evolution.detector import ImprovementOpportunity, UpgradeCategory
+from bernstein.evolution.upgrade_targets import upgrade_owned_files
+
+if TYPE_CHECKING:
+    from bernstein.evolution.aggregator import AnomalyDetection
+
+
+class AnalysisTrigger(Enum):
+    """Triggers for running analysis."""
+
+    SCHEDULED = "scheduled"  # Periodic scheduled run
+    THRESHOLD = "threshold"  # Metric threshold exceeded
+    MANUAL = "manual"  # Manual trigger
+    ANOMALY = "anomaly"  # Anomaly detected
+
+
+class UpgradeStatus(Enum):
+    """Status of an upgrade."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    IN_PROGRESS = "in_progress"
+    APPLIED = "applied"
+    ROLLED_BACK = "rolled_back"
+    REJECTED = "rejected"
+
+
+class ApprovalMode(Enum):
+    """Approval mode for upgrades."""
+
+    AUTO = "auto"  # Apply immediately
+    HUMAN = "human"  # Require human approval
+    HYBRID = "hybrid"  # Auto if confidence > 90%
+
+
+@dataclass
+class UpgradeProposal:
+    """Proposal for a system upgrade."""
+
+    id: str
+    title: str
+    category: UpgradeCategory
+    description: str
+    current_state: str
+    proposed_change: str
+    benefits: list[str]
+    risk_assessment: RiskAssessment
+    rollback_plan: RollbackPlan
+    cost_estimate_usd: float
+    expected_improvement: str
+    confidence: float
+    status: UpgradeStatus = UpgradeStatus.PENDING
+    approval_mode: ApprovalMode = ApprovalMode.HYBRID
+    created_at: float = field(default_factory=time.time)
+    applied_at: float | None = None
+    triggered_by: AnalysisTrigger = AnalysisTrigger.SCHEDULED
+    #: Agent that produced this proposal. The admission gate measures the
+    #: proposer; ``to_task`` below sets ``role="manager"`` for routing, which
+    #: identifies the executor and is deliberately not the same thing.
+    produced_by: str = ""
+
+    @property
+    def storage_key(self) -> str:
+        """The key this proposal's on-disk state is filed under, distinct from its label (#6186).
+
+        ``id`` is a label: ``ProposalGenerator`` mints it from a counter that starts at
+        zero in every process, so the first proposal of every run is ``UPG-0001``. Keyed
+        on that, a second run's rollback receipt replaced the first's, and a never-applied
+        proposal could restore a different proposal's backup. This is a short sha256 over
+        the fields that identify the proposal, ``created_at`` included, so two runs'
+        ``UPG-0001`` never share a key, and the key can be recomputed from the proposal
+        itself in a process that did not create it. ``status`` and ``applied_at`` are left
+        out because they change over the proposal's life and the key must not.
+        Treat the included fields as immutable identity once persisted; revise
+        them by creating a new proposal rather than editing a live one.
+        """
+        body = {
+            "id": self.id,
+            "title": self.title,
+            "category": self.category.value,
+            "description": self.description,
+            "current_state": self.current_state,
+            "proposed_change": self.proposed_change,
+            "created_at": self.created_at,
+            "triggered_by": self.triggered_by.value,
+            "produced_by": self.produced_by,
+        }
+        canonical = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return f"{self.id}-{hashlib.sha256(canonical).hexdigest()[:12]}"
+
+    def to_task(self) -> Task:
+        """Convert upgrade proposal to a Task."""
+        upgrade_details = UpgradeProposalDetails(
+            current_state=self.current_state,
+            proposed_change=self.proposed_change,
+            benefits=self.benefits,
+            risk_assessment=self.risk_assessment,
+            rollback_plan=self.rollback_plan,
+            cost_estimate_usd=self.cost_estimate_usd,
+            performance_impact=self.expected_improvement,
+        )
+
+        return Task(
+            id=self.id,
+            title=self.title,
+            description=self.description,
+            role="manager",  # Manager handles upgrades
+            priority=1 if self.risk_assessment.level == "critical" else 2,
+            scope=Scope.MEDIUM,
+            complexity=Complexity.HIGH,
+            estimated_minutes=60,
+            task_type=TaskType.UPGRADE_PROPOSAL,
+            upgrade_details=upgrade_details,
+            owned_files=upgrade_owned_files(self.category),
+        )
+
+
+class ProposalGenerator:
+    """Creates upgrade proposals from opportunities and anomalies."""
+
+    def __init__(self) -> None:
+        self._counter: int = 0
+
+    def create_proposal(
+        self,
+        opportunity: ImprovementOpportunity,
+        trigger: AnalysisTrigger,
+    ) -> UpgradeProposal:
+        """Create an upgrade proposal from an opportunity."""
+        self._counter += 1
+        proposal_id = f"UPG-{self._counter:04d}"
+
+        # Forward the opportunity's components instead of dropping them: they
+        # are the risk scorer's blast-radius input (issue #3398). They are
+        # subsystem labels, not paths, and never become owned_files.
+        risk_level_map = {
+            "low": RiskAssessment(level="low", affected_components=list(opportunity.affected_components)),
+            "medium": RiskAssessment(level="medium", affected_components=list(opportunity.affected_components)),
+            "high": RiskAssessment(level="high", affected_components=list(opportunity.affected_components)),
+        }
+        default_risk = RiskAssessment(affected_components=list(opportunity.affected_components))
+
+        approval_mode_map = {
+            "low": ApprovalMode.AUTO,
+            "medium": ApprovalMode.HYBRID,
+            "high": ApprovalMode.HUMAN,
+        }
+
+        return UpgradeProposal(
+            id=proposal_id,
+            title=opportunity.title,
+            category=opportunity.category,
+            description=opportunity.description,
+            current_state=f"Current {opportunity.category.value} needs improvement",
+            proposed_change=opportunity.description,
+            benefits=[opportunity.expected_improvement],
+            risk_assessment=risk_level_map.get(opportunity.risk_level, default_risk),
+            rollback_plan=RollbackPlan(
+                steps=["Revert configuration changes", "Restart affected components"],
+                estimated_rollback_minutes=15,
+            ),
+            cost_estimate_usd=opportunity.estimated_cost_impact_usd,
+            expected_improvement=opportunity.expected_improvement,
+            confidence=opportunity.confidence,
+            approval_mode=approval_mode_map.get(opportunity.risk_level, ApprovalMode.HYBRID),
+            triggered_by=trigger,
+        )
+
+    def create_emergency_proposal(
+        self,
+        anomaly: AnomalyDetection,
+    ) -> UpgradeProposal:
+        """Create an emergency proposal for a critical anomaly."""
+        self._counter += 1
+        proposal_id = f"EMG-{self._counter:04d}"
+
+        return UpgradeProposal(
+            id=proposal_id,
+            title=f"Emergency fix for {anomaly.metric_name} anomaly",
+            category=UpgradeCategory.POLICY_UPDATE,
+            description=anomaly.description,
+            current_state=f"Critical anomaly detected in {anomaly.metric_name}",
+            proposed_change=f"Investigate and fix {anomaly.metric_name} anomaly",
+            benefits=["Restore normal operation", "Prevent further degradation"],
+            risk_assessment=RiskAssessment(level="high", affected_components=[anomaly.metric_name]),
+            rollback_plan=RollbackPlan(
+                steps=["Revert any changes", "Investigate root cause"],
+                estimated_rollback_minutes=30,
+            ),
+            cost_estimate_usd=0.0,
+            expected_improvement="Restore baseline metrics",
+            confidence=0.9,
+            approval_mode=ApprovalMode.AUTO,
+            triggered_by=AnalysisTrigger.ANOMALY,
+        )

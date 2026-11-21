@@ -1,0 +1,29 @@
+# Contract for the Kimi CLI (adapter: kimi).
+#
+# Always-passed surface from src/bernstein/adapters/kimi.py:
+# ``kimi --yolo -c <prompt>``.
+# ``--yolo`` auto-approves tool calls so the session runs unattended;
+# ``-c`` carries the initial prompt.
+adapter: kimi
+binary: kimi
+install:
+  method: uv
+  # Pinned to the last release that runs (#6264). kimi-cli is archived:
+  # 1.52.0, its final release, answers --help and -c alike with a one-line
+  # deprecation notice and exit 0, and with no arguments runs the Kimi Code
+  # install script. "Latest" will not move again, so the canary would skip
+  # forever and a spawned worker would do nothing and report success.
+  spec: "kimi-cli==1.51.0"
+auth:
+  required_for_help: false
+  required_for_models: false
+  secret_env: "MOONSHOT_API_KEY"
+  basis: api_key
+required_flags:
+  - "--yolo"
+  - "-c"
+required_subcommands: []
+help_command: ["kimi", "--help"]
+expected_models:
+  command: []
+  required_present: []

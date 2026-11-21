@@ -1,0 +1,197 @@
+# Global config CLI (`bernstein config`)
+
+`bernstein config` reads and writes the per-operator global config file at
+`~/.bernstein/config.yaml`. This is a different layer from
+[`bernstein.yaml`, `.sdd/config.yaml`, and the tunable defaults documented in
+the configuration reference](CONFIG.md): those are per-project files checked
+into (or living next to) a repo, while `~/.bernstein/config.yaml` holds an
+operator's cross-project defaults (default CLI adapter, budget, effort,
+concurrency) that apply unless a project overrides them.
+
+## How to use it
+
+```
+bernstein config set <key> <value>     # write to ~/.bernstein/config.yaml
+bernstein config get <key>             # show the effective value + its source
+bernstein config list                  # show every known key, value, and source
+bernstein config diff                  # diff project bernstein.yaml against built-in defaults
+bernstein config validate              # validate project model policy / providers
+bernstein config conflicts             # show settings where sources disagree
+bernstein config explain [<key>]       # every effective value, its layer, and the file it came from
+bernstein config view-mode <mode>      # set dashboard detail level
+```
+
+### `bernstein config set KEY VALUE`
+
+Writes `KEY` into `~/.bernstein/config.yaml`. Numeric-looking values are
+coerced to `int`/`float`; `null`/`none` (case-insensitive) is stored as
+`None`; everything else is stored as a string.
+
+```
+bernstein config set cli codex
+bernstein config set budget 25
+bernstein config set max_agents 4
+```
+
+### `bernstein config get KEY`
+
+Prints the effective value for `KEY` and which layer it came from, plus the
+full resolution chain.
+
+```
+bernstein config get cli
+# cli = 'codex'  (source: global)
+# resolution: session -> project -> context -> global -> default
+```
+
+Flags: `--project-dir DIR` (default `.`) — the project root used to load
+`.sdd/config.yaml` for the precedence check.
+
+### `bernstein config list`
+
+Same resolution, applied to every key in the built-in defaults table
+(`cli`, `budget`, `max_agents`, `effort`, `model`), rendered as a table of
+key / value / source / full resolution chain. Same `--project-dir` flag as
+`get`.
+
+### `bernstein config explain [KEY]`
+
+Answers "why is this value what it is". With no `KEY`, every known key is
+listed; with one, the layers consulted for it are printed highest-precedence
+first.
+
+```bash
+bernstein config explain                # survey every key
+bernstein config explain cli            # one key, with the layers consulted
+bernstein config explain cli --json     # machine-readable
+```
+
+It differs from `config list` in two ways: it names the **file** each layer was
+read from, and `--json` emits a shape a CI check can gate on:
+
+```json
+{
+  "precedence": ["seed", "session", "project", "context", "global", "default"],
+  "settings": [
+    {
+      "key": "cli",
+      "value": "codex",
+      "layer": "project",
+      "path": "/srv/app/.sdd/config.yaml",
+      "chain": [{ "source": "project", "value": "codex", "path": "/srv/app/.sdd/config.yaml" },
+                { "source": "default", "value": "claude", "path": null }]
+    }
+  ]
+}
+```
+
+The payload carries the precedence it resolved by, so a caller does not have to
+hardcode the order. Values are the redacted ones -- a resolution report is what
+an operator pastes into an issue, so a secret must not be the thing that leaks.
+
+An unknown key exits non-zero and lists the known ones, rather than reporting
+the setting as unresolved.
+
+`--project-dir` selects which project's `.sdd/config.yaml` is consulted.
+
+### `bernstein config diff`
+
+Different scope from the commands above: it reads `bernstein.yaml` (or
+`bernstein.yml`) in the current directory — the **project seed**, not the
+global config file — and prints every key that differs from Bernstein's
+built-in defaults (added / changed / removed). Empty output means the
+project seed matches defaults exactly, or no seed file is present.
+
+### `bernstein config validate`
+
+Validates the project's model policy and provider configuration: loads
+`bernstein.yaml` (from the current directory or a parent), loads
+`.sdd/config/providers.yaml` and `.sdd/config/model_policy.yaml` (or the
+model policy embedded in `bernstein.yaml`) into a `TierAwareRouter`, and
+runs `router.validate_policy()`. Exits non-zero and lists each issue when
+validation fails (e.g. allow/deny conflicts, a preferred provider excluded
+by its own allow list, or a tier with no available provider once policy
+constraints apply). On success, prints a provider summary table (tier,
+region, health, policy-allowed, residency).
+
+### `bernstein config conflicts`
+
+Resolves every config key across all sources and reports two kinds of
+problems, using `--project-dir` the same way as `get`/`list`:
+
+- **Setting conflicts** — the same key has different values across sources
+  (e.g. `.sdd/config.yaml` and `~/.bernstein/config.yaml` disagree).
+- **Policy violations** — a source sets a key it isn't allowed to set
+  (`check_source_policies`).
+
+Prints "No setting conflicts or policy violations detected." when clean.
+
+### `bernstein config view-mode {novice|standard|expert}`
+
+Sets the dashboard/CLI detail level for the current project, persisted to
+`.sdd/config.yaml`. `novice` trims output to the essentials; `expert` shows
+full detail.
+
+## Precedence
+
+`bernstein config get`/`list`/`explain`/`conflicts` resolve a key across, from
+highest to lowest precedence:
+
+1. **seed** — the run-seed (`bernstein.yaml`) value actually enforced by the
+   orchestrator, when present.
+2. **session** — environment overrides (`BERNSTEIN_CLI`, `BERNSTEIN_BUDGET`,
+   `BERNSTEIN_MAX_AGENTS`, `BERNSTEIN_EFFORT`, `BERNSTEIN_MODEL`,
+   `BERNSTEIN_HOST_ISOLATION_TIER`, `BERNSTEIN_HOST_ISOLATION_EVIDENCE`) or
+   caller-provided session overrides.
+3. **project** — `<project>/.sdd/config.yaml`.
+4. **context** — the active operating context, when one is selected (see
+   `bernstein ctx` in [`CONFIG.md`](CONFIG.md#operating-contexts-bernstein-ctx)).
+5. **global** — `~/.bernstein/config.yaml`, the file `bernstein config set`
+   writes to.
+6. **default** — built-in defaults (`cli=claude`, `budget=None`,
+   `max_agents=6`, `effort=max`, `model=None`,
+   `host_isolation_tier=none`, `host_isolation_evidence=""`).
+
+In code this order has exactly one definition, `CONFIG_PRECEDENCE` in
+`src/bernstein/core/config/home.py`; `tests/unit/test_config_explain_cmd.py`
+fails if the resolver, the command, or the `ConfigSource` vocabulary parts ways
+with it.
+
+Only `bernstein config set`/`get`/`list`/`explain`/`conflicts`/`view-mode`
+operate on this precedence chain. `bernstein config diff` is a separate, narrower tool
+that only compares the project seed file to built-in defaults.
+
+## Known config keys
+
+| Key | Default | Meaning |
+|---|---|---|
+| `cli` | `claude` | Default CLI adapter (`claude`, `codex`, `gemini`, `qwen`, ...). |
+| `budget` | `null` | Default spending cap in USD (`null` = unlimited). |
+| `max_agents` | `6` | Default max concurrent agents. |
+| `effort` | `max` | Default effort level (`max`/`medium`/`low`). |
+| `model` | `null` | Default model override (`null` = adapter default). |
+| `host_isolation_tier` | `none` | Isolation the host already applies to this process (`none`, `process`, `container`, `vm`). Env: `BERNSTEIN_HOST_ISOLATION_TIER`. |
+| `host_isolation_evidence` | `""` | Free-text description of that isolation, recorded verbatim in the audit chain. Env: `BERNSTEIN_HOST_ISOLATION_EVIDENCE`. |
+
+`host_isolation_tier` is read by adapters that ship a sandbox of their own. An
+operator running the CLI inside a container or VM they control declares the
+tier once; `container` and `vm` make the agent's own sandbox redundant and it
+is dropped, `process` and `none` keep it. A value outside the four is rejected
+and the sandbox stays on. Each declaration reaching an adapter is written to
+the audit chain as `sandbox.host_isolation_declared`. See
+[the sandbox architecture note](../architecture/sandbox.md#declared-host-isolation).
+
+## Source
+
+- `src/bernstein/cli/commands/workspace_cmd.py` — `config_group` and all
+  subcommands.
+- `src/bernstein/core/config/home.py` — `BernsteinHome`, `resolve_config`,
+  `resolve_config_bundle`, `explain_conflicts`, `check_source_policies`.
+- `src/bernstein/core/config/host_isolation.py` — `resolve_host_isolation`,
+  the closed tier vocabulary for `host_isolation_tier`.
+- `src/bernstein/cli/config_diff_cli.py` — `bernstein config diff`.
+
+## Related
+
+- [Bernstein Configuration Reference](CONFIG.md) — `bernstein.yaml`,
+  `.sdd/config.yaml`, environment variables, and tunable defaults.

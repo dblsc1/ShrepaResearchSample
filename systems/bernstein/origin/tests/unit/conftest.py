@@ -1,0 +1,182 @@
+"""Unit test conftest - ensure the local src/ takes priority on sys.path.
+
+In git worktrees the parent project's venv may appear earlier on sys.path
+than the worktree's own src/, causing new modules to be shadowed.  This
+conftest inserts the worktree's src/ at position 0 so that imports always
+resolve to the locally checked-out code.
+
+It also installs the autouse no-network guard (see ``_no_network``): unit
+tests are hermetic and must not open a real outbound connection. Loopback is
+allowed so local mock servers keep working; a test that genuinely needs the
+network lives in ``tests/integration/`` or opts out with
+``@pytest.mark.allow_network``.
+"""
+
+from __future__ import annotations
+
+import socket
+import sys
+from collections.abc import Iterator
+from pathlib import Path
+
+import pytest
+
+# This file lives at tests/unit/conftest.py → parent.parent is the repo root
+_SRC = str(Path(__file__).resolve().parent.parent.parent / "src")
+if _SRC not in sys.path:
+    sys.path.insert(0, _SRC)
+
+# Re-export the shared adapter-test fixture so adapter test modules can opt
+# in via ``pytestmark = pytest.mark.usefixtures("no_watchdog_threads")``.
+# The helpers module keeps the ``make_popen_mock`` / ``inner_cmd`` callables
+# test modules import directly.
+import os
+from contextlib import contextmanager
+from typing import NoReturn
+
+from tests.unit._adapter_test_helpers import no_watchdog_threads  # noqa: F401
+from tests.unit._no_network import block_network
+
+try:
+    from hypothesis import HealthCheck, Verbosity, settings
+
+    settings.register_profile(
+        "smoke",
+        max_examples=50,
+        deadline=5_000,
+        derandomize=True,
+        suppress_health_check=[
+            HealthCheck.too_slow,
+            HealthCheck.filter_too_much,
+            HealthCheck.function_scoped_fixture,
+        ],
+        verbosity=Verbosity.normal,
+    )
+
+    # derandomize=False, matching tests/property/conftest.py's "deep" profile
+    # (#4118): "deep" exists to explore fresh input space on the nightly
+    # cadence, so freezing it here would silence the thing it is for. #4128
+    # copied the smoke profile's derandomize=True onto this registration too,
+    # which both violates that invariant on its own and, if this file and
+    # tests/property/conftest.py ever load in the same pytest process,
+    # collides with the other file's registration of the same profile name --
+    # whichever conftest imports last wins, silently, so the effective value
+    # is order-dependent rather than a stated choice from either file.
+    settings.register_profile(
+        "deep",
+        max_examples=1_000,
+        deadline=None,
+        derandomize=False,
+        suppress_health_check=[
+            HealthCheck.too_slow,
+            HealthCheck.filter_too_much,
+            HealthCheck.function_scoped_fixture,
+        ],
+        verbosity=Verbosity.verbose,
+        print_blob=True,
+    )
+
+    settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "smoke"))
+except ImportError:
+    pass
+
+
+@pytest.fixture(autouse=True)
+def _block_real_network(request: pytest.FixtureRequest) -> Iterator[None]:
+    """Block non-loopback connections and DNS for every unit test.
+
+    A unit test that opens a real outbound connection or performs a DNS lookup
+    is flaky by construction: it passes only while the remote host answers.
+    The guard converts any such attempt into a clear, deterministic error that
+    names the host so the fix (mock it) is obvious.
+
+    Loopback (``127.0.0.0/8``, ``::1``, ``localhost``) and Unix-domain sockets
+    are allowed so the many unit tests that spin a local mock server keep
+    working. A test that legitimately must reach the network either lives in
+    ``tests/integration/`` (where this fixture does not apply) or marks itself
+    ``@pytest.mark.allow_network`` and documents why.
+    """
+    if request.node.get_closest_marker("allow_network") is not None:
+        yield
+        return
+    with block_network(), _block_dns():
+        yield
+
+
+@contextmanager
+def _block_dns() -> Iterator[None]:
+    """Patch ``socket.getaddrinfo`` to block real DNS resolution.
+
+    ``block_network()`` guards ``socket.socket.connect`` and ``connect_ex``,
+    but a name-resolution request still leaves the test process before any
+    connection attempt and can hang or leak resolver state. This context
+    monkeypatches ``socket.getaddrinfo`` to raise ``socket.gaierror`` with a
+    clear message for non-loopback addresses. Loopback addresses (127.0.0.0/8,
+    ::1, localhost) are allowed so local mock servers keep working. Existing
+    tests that patch the resolver are unaffected because they replace the same
+    function on the module object.
+    """
+    import ipaddress
+
+    real_getaddrinfo = socket.getaddrinfo
+
+    def _is_loopback_host(host: str) -> bool:
+        if host.lower() in ("localhost", "localhost.localdomain", ""):
+            return True
+        bare = host.split("%", 1)[0]
+        try:
+            return ipaddress.ip_address(bare).is_loopback
+        except ValueError:
+            return False
+
+    def _blocked_getaddrinfo(host: object, *args: object, **_kwargs: object) -> NoReturn:
+        if isinstance(host, str) and _is_loopback_host(host):
+            return real_getaddrinfo(host, *args, **_kwargs)
+        raise socket.gaierror("blocked in unit tests")
+
+    socket.getaddrinfo = _blocked_getaddrinfo  # type: ignore[method-assign]
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = real_getaddrinfo  # type: ignore[method-assign]
+
+
+@pytest.fixture(autouse=True)
+def _reap_leaked_timeout_watchdogs():
+    """Cancel any timeout-watchdog Timer a spawn test leaves running.
+
+    ``CLIAdapter._start_timeout_watchdog`` starts a ``threading.Timer`` that
+    production code cancels when the agent is reaped. Adapter unit tests
+    routinely discard the ``SpawnResult`` (they only assert on the manifest
+    or log), so each spawn leaks a live Timer that sleeps for the full
+    timeout. Across a shard's worth of adapter tests these accumulate until
+    the process can no longer start new threads
+    (``RuntimeError: can't start new thread``), which flakes an unrelated
+    later test in the same shard. Cancel any that survive a test so worker
+    threads never pile up.
+    """
+    yield
+    import threading
+
+    for thread in threading.enumerate():
+        if isinstance(thread, threading.Timer) and thread.name.startswith("timeout-watchdog"):
+            thread.cancel()
+
+
+@pytest.fixture(autouse=True)
+def _reset_status_runtime_cache() -> None:
+    """Clear the status-dashboard runtime cache before every test.
+
+    ``bernstein.core.routes.status_dashboard`` memoises ``_runtime_summary``
+    results in module globals (``_runtime_cache`` / ``_runtime_cache_ts``)
+    with a 10s TTL. The cache is keyed on nothing, so every ``create_app``
+    instance in the process shares it: a test that hits ``/status`` or
+    ``/health`` serves its ``restart_count`` / ``memory_mb`` snapshot to any
+    test that runs within the TTL window, hiding that test's own app state.
+    Clearing the globals at setup makes each test read its own state
+    regardless of what ran before it.
+    """
+    status_dashboard = sys.modules.get("bernstein.core.routes.status_dashboard")
+    if status_dashboard is not None:
+        status_dashboard._runtime_cache = {}
+        status_dashboard._runtime_cache_ts = 0.0

@@ -1,0 +1,23 @@
+schema: paperclip/v1
+agents:
+  head-of-engineering:
+    permissions:
+      canCreateAgents: true
+      authorizationPolicy:
+        assignmentPolicy:
+          mode: protected
+  cto-g1:
+    permissions:
+      authorizationPolicy:
+        assignmentPolicy:
+          mode: protected
+  senior-coder-g1:
+    permissions:
+      authorizationPolicy:
+        assignmentPolicy:
+          mode: protected
+  qa-g1:
+    permissions:
+      authorizationPolicy:
+        assignmentPolicy:
+          mode: protected

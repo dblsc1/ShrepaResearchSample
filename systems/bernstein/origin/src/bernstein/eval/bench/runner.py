@@ -1,0 +1,326 @@
+"""
+bernstein-bench: ``bernstein bench run <suite>``
+
+Executes every task in a :class:`BenchSuite`, collects per-task run receipts
+from the replay journal + lineage spine, scores them via ``harness.py``
+multiplicative scoring, and emits a signed :class:`SubmissionBundle`.
+
+The real adapter / journal path is injected via the ``ReplayAdapter``
+protocol so tests can pass a hermetic mock without network or real adapters.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import time
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Protocol
+
+from bernstein.eval.bench.bundle import REFUSED_STATUS, SubmissionBundle, TaskResult
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from bernstein.eval.bench.suite import BenchSuite, BenchTask
+
+# ---------------------------------------------------------------------------
+# Protocol: replay adapter
+# ---------------------------------------------------------------------------
+
+
+class ReplayAdapter(Protocol):
+    """
+    Thin boundary the runner calls to execute one task and fetch its receipt.
+
+    The production implementation wraps ``scenario_runner.py`` +
+    ``journal.py``; tests inject a ``MockReplayAdapter``.
+    """
+
+    def run_task(self, task: BenchTask, scheduler_config: dict[str, Any]) -> dict[str, Any]:
+        """
+        Execute *task* and return the raw run receipt::
+
+            {
+                "journal_head": "<sha256>",
+                "spine_head":   "<sha256>",
+                "run_id":       "<uuid>",
+                "events":       [...],   # replay-sufficient event log
+            }
+        """
+        ...
+
+    def score_task(self, task: BenchTask, receipt: dict[str, Any]) -> tuple[bool, float, dict[str, Any]]:
+        """
+        Re-run harness.py multiplicative scoring against *receipt*.
+
+        Returns ``(passed, score, harness_output)``.
+        """
+        ...
+
+
+# ---------------------------------------------------------------------------
+# Mock adapter (hermetic, no network, no real adapters — used in tests)
+# ---------------------------------------------------------------------------
+
+
+class MockReplayAdapter:
+    """
+    Deterministic stub: every task passes with score 1.0.
+
+    The receipt is derived from the task content hash so two calls with the
+    same task produce byte-identical receipts (empirical determinism property
+    the acceptance test verifies).
+
+    The verdict is SYNTHETIC. It is not derived from any run, so a bundle
+    scored by this adapter is not evidence that a task was done. ``synthetic``
+    lets a caller refuse to attach a real signature to such a bundle, or label
+    its output as mock. ``score_task`` does check that the receipt is the one
+    this adapter would have produced for the task, so a swapped receipt does
+    not replay as a pass; that is a consistency check, not scoring.
+    """
+
+    #: Verdicts from this adapter are not derived from real task execution.
+    synthetic = True
+
+    def run_task(self, task: BenchTask, scheduler_config: dict[str, Any]) -> dict[str, Any]:
+        task_hash = task.content_hash()
+        # Deterministic synthetic journal / spine heads.
+        journal_head = hashlib.sha256(f"journal:{task_hash}".encode()).hexdigest()
+        spine_head = hashlib.sha256(f"spine:{task_hash}".encode()).hexdigest()
+        return {
+            "journal_head": journal_head,
+            "spine_head": spine_head,
+            "run_id": f"mock-{task_hash[:12]}",
+            "events": [
+                {"seq": 0, "kind": "task.started", "task_hash": task_hash},
+                {"seq": 1, "kind": "task.completed", "task_hash": task_hash},
+            ],
+            "tokens": 100,
+            "cost_usd": 0.001,
+            "duration_seconds": 0.05,
+        }
+
+    def score_task(self, task: BenchTask, receipt: dict[str, Any]) -> tuple[bool, float, dict[str, Any]]:
+        expected = self.run_task(task, {})
+        if any(receipt.get(key) != expected[key] for key in ("journal_head", "spine_head", "run_id")):
+            return False, 0.0, {"note": "mock: receipt is not the one this adapter emits for the task"}
+        return True, 1.0, {"note": "mock: synthetic verdict, no assertions were evaluated"}
+
+
+# ---------------------------------------------------------------------------
+# Stochastic mock adapter (hermetic, seed-parameterised — used in
+# reliability tests to model model-sampling variance under fixed
+# coordination)
+# ---------------------------------------------------------------------------
+
+
+class StochasticMockReplayAdapter:
+    """
+    Seed-parameterised mock whose *model-output* payload varies per call
+    while every coordination field stays byte-identical across calls.
+
+    This is the hermetic stand-in for the one genuinely stochastic element
+    of a fixed-coordination run: model sampling.  Each ``run_task`` call
+    for the same task emits the same event schedule (same seqs, same
+    kinds, same coordination payloads) but a different ``model.output``
+    sample, derived deterministically from ``(seed, task_hash,
+    call_index)`` so tests are reproducible.
+
+    The verdict is a pure function of the sample embedded in the receipt
+    (:meth:`sample_passes`), so ``score_task`` re-derives it from the
+    receipt alone — exactly what the offline verifier needs.
+    """
+
+    def __init__(self, seed: int = 0) -> None:
+        self._seed = seed
+        self._call_counts: dict[str, int] = {}
+
+    @staticmethod
+    def derive_sample(seed: int, task_hash: str, attempt_index: int) -> int:
+        """Deterministic 64-bit sample for ``(seed, task, attempt)``."""
+        digest = hashlib.sha256(f"sample:{seed}:{task_hash}:{attempt_index}".encode()).digest()
+        return int.from_bytes(digest[:8], "big")
+
+    @staticmethod
+    def sample_passes(sample: int) -> bool:
+        """Verdict rule: a pure function of the sampled value."""
+        return sample % 2 == 0
+
+    def run_task(self, task: BenchTask, scheduler_config: dict[str, Any]) -> dict[str, Any]:
+        task_hash = task.content_hash()
+        attempt_index = self._call_counts.get(task_hash, 0)
+        self._call_counts[task_hash] = attempt_index + 1
+        sample = self.derive_sample(self._seed, task_hash, attempt_index)
+        # journal_head commits to the events including the model output, so
+        # it legitimately varies per attempt; the spine head does not.
+        journal_head = hashlib.sha256(f"journal:{task_hash}:{sample}".encode()).hexdigest()
+        spine_head = hashlib.sha256(f"spine:{task_hash}".encode()).hexdigest()
+        return {
+            "journal_head": journal_head,
+            "spine_head": spine_head,
+            "run_id": f"mock-{task_hash[:12]}-a{attempt_index}",
+            "events": [
+                {"seq": 0, "kind": "task.started", "task_hash": task_hash},
+                {"seq": 1, "kind": "model.output", "sample": sample},
+                {"seq": 2, "kind": "task.completed", "task_hash": task_hash},
+            ],
+            "tokens": 100,
+            "cost_usd": 0.001,
+            "duration_seconds": 0.05,
+        }
+
+    def score_task(self, task: BenchTask, receipt: dict[str, Any]) -> tuple[bool, float, dict[str, Any]]:
+        sample = next(event["sample"] for event in receipt.get("events", []) if event.get("kind") == "model.output")
+        passed = self.sample_passes(sample)
+        return passed, 1.0 if passed else 0.0, {"sample": sample}
+
+
+# ---------------------------------------------------------------------------
+# Runner
+# ---------------------------------------------------------------------------
+
+
+class HoldoutIsolationError(ValueError):
+    """Raised when holdout specifications or results are exposed to a public location."""
+
+
+@dataclass
+class BenchRunner:
+    """
+    Runs a :class:`BenchSuite` end-to-end and produces a
+    :class:`SubmissionBundle`.
+    """
+
+    suite: BenchSuite
+    adapter: ReplayAdapter
+    scheduler_config: dict[str, Any]
+    budget_usd: float | None = None
+
+    def run(self) -> SubmissionBundle:
+        """Execute every task; return the unsigned bundle."""
+        task_results: list[TaskResult] = []
+        cumulative_cost_usd = 0.0
+
+        for task in self.suite.tasks:
+            # Check budget gate (#5464)
+            if self.budget_usd is not None and cumulative_cost_usd >= self.budget_usd:
+                refusal_receipt = {
+                    "journal_head": "",
+                    "spine_head": "",
+                    "run_id": f"refusal-{task.id}",
+                    "refusal_reason": (
+                        f"budget_exceeded: limit ${self.budget_usd:.4f} exceeded (spent ${cumulative_cost_usd:.4f})"
+                    ),
+                    "status": REFUSED_STATUS,
+                }
+                task_results.append(
+                    TaskResult(
+                        task_id=task.id,
+                        task_hash=task.content_hash(),
+                        receipt=refusal_receipt,
+                        passed=False,
+                        score=0.0,
+                        # Kept for readers that predate the canonical marker; the
+                        # marker a reader must use is the receipt's ``status``.
+                        harness_output={"refusal": "budget_exceeded"},
+                        tokens=0,
+                        cost_usd=0.0,
+                        duration_seconds=0.0,
+                    )
+                )
+                continue
+
+            receipt = self.adapter.run_task(task, self.scheduler_config)
+
+            passed, score, harness_output = self.adapter.score_task(task, receipt)
+
+            # Report what the harness reported, and nothing else. A missing
+            # metric stays missing:
+            #
+            #   * 0 tokens / $0.00 would be a fact the run does not have, and
+            #     the bundle is evidence — `has_resource_metrics()` would then
+            #     be true for every task and the budget gate would read a
+            #     fabricated zero as a real measurement;
+            #   * a wall-clock `t1 - t0` fallback is worse still, because it
+            #     is different on every run, so two replays of the same suite
+            #     would produce different bundle hashes and the byte-identical
+            #     determinism the bundle depends on would be gone.
+            tokens = None if receipt.get("tokens") is None else int(receipt["tokens"])
+            cost_usd = None if receipt.get("cost_usd") is None else max(0.0, float(receipt["cost_usd"]))
+            duration_seconds = None if receipt.get("duration_seconds") is None else float(receipt["duration_seconds"])
+
+            cumulative_cost_usd += cost_usd or 0.0
+
+            task_results.append(
+                TaskResult(
+                    task_id=task.id,
+                    task_hash=task.content_hash(),
+                    receipt=receipt,
+                    passed=passed,
+                    score=score,
+                    harness_output=harness_output,
+                    tokens=tokens,
+                    cost_usd=cost_usd,
+                    duration_seconds=duration_seconds,
+                )
+            )
+
+        return SubmissionBundle(
+            suite_hash=self.suite.suite_hash,
+            suite_version=self.suite.version,
+            holdout_hash=self.suite.holdout_hash,
+            task_results=task_results,
+            scheduler_config=self.scheduler_config,
+            submitted_at=time.time(),
+        )
+
+
+@dataclass
+class HoldoutBenchRunner:
+    """
+    Runs a :class:`BenchSuite`'s private holdout set end-to-end.
+
+    The holdout runner must refuse to write results or task specifications
+    anywhere public by construction.
+    """
+
+    suite: BenchSuite
+    adapter: ReplayAdapter
+    scheduler_config: dict[str, Any]
+
+    def run(self) -> SubmissionBundle:
+        """Execute holdout tasks; return the private submission bundle."""
+        if not self.suite.holdout_tasks:
+            raise ValueError("No holdout tasks defined in suite.")
+
+        task_results: list[TaskResult] = []
+        for task in self.suite.holdout_tasks:
+            receipt = self.adapter.run_task(task, self.scheduler_config)
+            passed, score, harness_output = self.adapter.score_task(task, receipt)
+            task_results.append(
+                TaskResult(
+                    task_id=task.id,
+                    task_hash=task.content_hash(),
+                    receipt=receipt,
+                    passed=passed,
+                    score=score,
+                    harness_output=harness_output,
+                )
+            )
+
+        return SubmissionBundle(
+            suite_hash=self.suite.suite_hash,
+            suite_version=self.suite.version,
+            holdout_hash=self.suite.compute_holdout_hash(),
+            task_results=task_results,
+            scheduler_config=self.scheduler_config,
+            submitted_at=time.time(),
+        )
+
+    def save_result(self, bundle: SubmissionBundle, path: Path, is_public: bool = False) -> None:
+        """Save a holdout bundle locally, refusing public export."""
+        if is_public or "public" in str(path).lower():
+            raise HoldoutIsolationError(
+                f"Holdout runner refuses to write holdout results to public location {path!r} by construction."
+            )
+        bundle.save(path)

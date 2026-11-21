@@ -1,0 +1,907 @@
+# HMAC-chained audit log: operator guide
+
+bernstein writes a tamper-evident, append-only audit log for every
+orchestrator action. each entry is HMAC-SHA256-signed per
+[RFC 2104](https://datatracker.ietf.org/doc/html/rfc2104) (HMAC) using
+[FIPS 180-4](https://csrc.nist.gov/pubs/fips/180-4/upd1/final) SHA-256, and
+chained to the previous entry's hmac, so any after-the-fact edit invalidates
+every following hmac. this page tells an SRE or security operator how to
+run that surface in production: where the key lives, how to rotate it,
+how to verify a snapshot, how to ship to a SIEM, and what to do when a
+chain breaks.
+
+short version: keep the key off the audit volume, run
+`bernstein audit verify` from cron, fail the run if the exit code is
+non-zero.
+
+## Record format
+
+logs live under `.sdd/audit/` as one JSONL file per UTC day, e.g.
+`.sdd/audit/2026-05-07.jsonl`. each line is one event:
+
+```json
+{
+  "timestamp": "2026-05-07T14:30:00.000000Z",
+  "event_type": "task.transition",
+  "actor": "orchestrator",
+  "resource_type": "task",
+  "resource_id": "TASK-001",
+  "details": {"from_status": "open", "to_status": "claimed"},
+  "prev_hmac": "0000…0000",
+  "hmac": "d4e5f6…"
+}
+```
+
+the `hmac` field is computed over the canonical JSON payload (every
+field above except `hmac` itself) concatenated with the previous
+entry's `hmac`. pseudocode:
+
+```
+payload   = prev_hmac + json.dumps(entry_without_hmac, sort_keys=True)
+entry.hmac = HMAC_SHA256(audit_key, payload).hexdigest()
+```
+
+the very first event in a chain uses a genesis `prev_hmac` of 64
+zeros. daily rotation never resets the chain - the next file's first
+entry uses the last `hmac` from yesterday.
+
+source: `src/bernstein/core/security/audit.py`.
+
+### auto-approve decisions
+
+the tool-call approval gate runs a deterministic command/tool
+classifier (`src/bernstein/core/security/auto_approve.py`) before a tool
+call reaches the operator queue. each decision the gate acts on is
+recorded as an `auto_approve_decision` event so an auditor can prove,
+after the fact, which calls were rejected or auto-approved and which
+pattern drove the verdict:
+
+```json
+{
+  "event_type": "auto_approve_decision",
+  "actor": "backend",
+  "resource_type": "tool_call",
+  "resource_id": "Bash",
+  "details": {
+    "decision": "deny",
+    "tool": "Bash",
+    "reason": "Dangerous command detected: 'rm -rf /tmp/x'",
+    "matched_pattern": "\\brm\\s+-rf\\b",
+    "command": "rm -rf /tmp/x"
+  }
+}
+```
+
+precedence is deny-wins and the posture is fail-closed:
+
+- a deny-listed command (e.g. `rm -rf`, `git push --force`, `DROP
+  TABLE`, `curl ... | bash`) is rejected by the production path
+  regardless of interactive mode, and the rejection is written to the
+  chain with its matched pattern.
+- a safe command is only auto-approved when the operator opts in via
+  `approvals.smart_auto_approve: true` in `bernstein.yaml`. with the
+  default (`false`) a safe verdict still goes to the queue.
+- an ambiguous (`ask`) verdict, or any classifier error, never
+  auto-approves - it falls through to human review.
+
+source: `src/bernstein/core/approval/gate.py`.
+
+### fleet config-plane events
+
+the fleet config plane (#2550) records every named-configuration mutation
+on this chain, so config identity is a projection of receipts rather than a
+mutable live-state row:
+
+| event_type | recorded when | key `details` |
+| --- | --- | --- |
+| `fleet.var_set` | a fleet variable is written | `name`, `old_value_hash`, `new_value_hash`, `chain_position` |
+| `fleet.conn_create` | a connection document is created | `name`, `document_hash`, `secret_name_digest` |
+| `fleet.conn_rotate` | a connection document is rotated | `name`, `old_document_hash`, `new_document_hash`, `secret_name_digest` |
+| `fleet.conn_resolve` | a document resolves for a task | `name`, `document_hash`, `task_id`, `token_id` |
+| `fleet.conn_refuse` | a document refuses to resolve | `name`, `document_hash`, `reason` |
+| `fleet.context_activate` | an operating context is activated | `name`, `settings_hash` |
+
+these families are covered by the HMAC chain like every other event, so a
+mutated, deleted, or reordered record fails `bernstein audit verify`. in
+addition a dedicated semantic pillar (`_verify_fleet_config`) reconstructs
+the config-plane state and checks that variable write ordinals are
+contiguous, value hashes chain from write to write, and every rotation or
+resolution names a document that was created - so a record that is
+individually well-formed but spliced out of its family is still caught.
+raw secret material never appears in any of these records: connection
+documents carry only a broker secret *reference*, and the chain stores only
+an install-keyed HMAC digest of that reference name (not the raw name, not
+the secret value).
+
+source: `src/bernstein/core/fleet/` and
+`src/bernstein/core/security/audit_chain.py`.
+
+## Key management
+
+the HMAC key is loaded from, in order:
+
+1. the `BERNSTEIN_AUDIT_KEY_PATH` environment variable, if set.
+2. `$XDG_STATE_HOME/bernstein/audit.key` if `XDG_STATE_HOME` is set.
+3. `~/.local/state/bernstein/audit.key` (XDG default).
+
+a legacy fallback at `<sdd>/../config/audit-key` is still read for
+verification only - bernstein logs a warning when it is used. migrate
+off it.
+
+design intent: the key sits **outside** `.sdd/audit/` so an attacker
+who can write `.sdd/audit/*.jsonl` cannot also read or rotate the
+signing key. don't undo this - never colocate the key with the log
+volume, and don't bake the key into a docker image layer.
+
+### Permissions
+
+bernstein refuses to load a key file with mode looser than `0600`. on
+posix systems a group- or world-readable key raises
+`AuditKeyPermissionError` and the orchestrator refuses to start. on
+windows the bit-check is skipped (NTFS uses ACLs).
+
+```bash
+chmod 0600 ~/.local/state/bernstein/audit.key
+ls -l ~/.local/state/bernstein/audit.key
+# -rw------- 1 ops ops 64 May  7 14:30 audit.key
+```
+
+### First boot
+
+if no key file exists, bernstein generates one (32 bytes of
+`secrets.token_hex`) at the resolved path on first startup, with the
+parent directory created `0700` and the file `0600`. that auto-bootstrap
+is fine for a developer laptop. for a production deploy, materialise
+the key from your secrets manager and write it yourself before the
+orchestrator first starts - that way the key value is owned by your
+KMS / vault, not by whichever host happened to boot first.
+
+```bash
+# pull from vault, write to the canonical path, lock it down
+mkdir -p ~/.local/state/bernstein
+vault kv get -field=audit_key secret/bernstein/audit \
+  > ~/.local/state/bernstein/audit.key
+chmod 0600 ~/.local/state/bernstein/audit.key
+```
+
+### Externalising to a KMS / vault
+
+bernstein does not call out to a KMS for every entry - that would put
+a network hop on the audit write path. the supported pattern is:
+
+- KMS / vault holds the canonical key.
+- a sidecar (vault-agent, sops, your config-mgmt tool) projects it
+  into the file at `BERNSTEIN_AUDIT_KEY_PATH` with `0600`.
+- the orchestrator reads the file once at startup; rotate the
+  projected file and restart to roll keys.
+
+if you need full HSM-backed signing, that's an enhancement, not a
+shipped feature - open an issue.
+
+### Rotating the key without breaking the chain
+
+the chain is keyed by **the secret used to generate the hmacs that
+already exist on disk**. swapping the key invalidates every hmac
+written before the swap. operationally, rotation is therefore a
+"close current chain, open a new one" event, not an in-place update.
+
+procedure:
+
+1. drain in-flight tasks or stop the orchestrator: `bernstein stop`.
+2. snapshot the current chain for forensic retention:
+
+   ```bash
+   bernstein audit verify --hmac-only        # confirm clean before rollover
+   bernstein audit seal                      # store the merkle root
+   tar czf audit-pre-rotate-$(date -u +%F).tgz .sdd/audit/
+   ```
+
+3. archive `.sdd/audit/` somewhere read-only and clear the live
+   directory (or move the orchestrator to a fresh `.sdd/`). the
+   sealed merkle root + the archived JSONL still verify with the
+   **old** key - keep it alongside the archive.
+4. write the new key to `BERNSTEIN_AUDIT_KEY_PATH` (`0600`).
+5. start the orchestrator. the next entry begins a new chain with a
+   genesis `prev_hmac`.
+
+the practical rotation cadence is annual or on personnel/key
+compromise events, not weekly - the cost is a chain split, not zero.
+schedule it alongside SOC 2 / ISO renewals.
+
+if you want a "soft rotation" with no chain break, the only honest
+answer is "we don't ship that today". the chain is intentionally
+keyed by a single secret to keep verification simple for auditors.
+
+## Verifying the chain
+
+the public verb is `bernstein audit verify`:
+
+```bash
+bernstein audit verify              # hmac chain + merkle seal
+bernstein audit verify --hmac-only  # hmac chain only
+bernstein audit verify --merkle-only
+```
+
+exit codes:
+
+| code | meaning                                            |
+|------|----------------------------------------------------|
+| 0    | chain intact (and merkle seal matches, if checked) |
+| 1    | one or more verification errors                    |
+
+a healthy run prints a green panel:
+
+```
+╭───────────────────────────────────╮
+│ HMAC Chain Verification Passed    │
+╰───────────────────────────────────╯
+```
+
+a tamper hit prints a red panel and one line per mismatched entry -
+filename, line number, expected vs stored prefix:
+
+```
+╭───────────────────────────────────╮
+│ HMAC Chain Verification FAILED    │
+╰───────────────────────────────────╯
+  ! 2026-05-07.jsonl:42: HMAC mismatch (expected a1b2c3d4… got deadbeef…)
+  ! 2026-05-07.jsonl:43: prev_hmac mismatch (expected a1b2c3d4… got deadbeef…)
+```
+
+### The chain position a record states about itself
+
+many records carry `details.prev_chain_digest`: the chain head the
+writer says the record was appended onto. downstream consumers read
+it as the record's anchor - payment receipts lift it verbatim,
+capability tokens check their own `audit_head` against it, admission
+and SLA receipts link through it.
+
+the `hmac` covers the *bytes* of that statement, not its truth. a
+record naming a predecessor it never had signs exactly as cleanly as
+one naming its real predecessor, so a false anchor used to verify
+green. `verify` now compares the stated value against the record's own
+`prev_hmac` and reports the disagreement in its own words:
+
+```
+  ! 2026-05-07.jsonl:42: stated chain predecessor dededededededede… is not
+    the record's own predecessor 113651ab625159dc…
+```
+
+this is deliberately *not* worded as an HMAC or `prev_hmac` mismatch.
+those two mean the bytes or the linkage were altered. this one means
+the bytes are intact and authentic while the claim inside them is
+wrong - a writer defect, not tampering - and it is reported as a hard
+error, never as acknowledgeable tear evidence.
+
+an absent or empty `prev_chain_digest` is not a claim and is not
+checked: a writer with no chain wired records `""`, which asserts
+nothing.
+
+`bernstein audit seal` refuses over a false anchor for the same reason
+it refuses over a broken chain: a fresh root would pin a history that
+contains a claim known to be untrue. an operator who needs a seal over
+a chain carrying one - a record written by a pre-v3.11 writer, say -
+takes the documented forensic path, `--allow-broken-chain`, which
+never advances the checkpoint.
+
+one legacy exemption exists. before v3.11 the skill catalogue used the
+same key for "the previous install event *for this entry*", which is a
+real record but never the immediate predecessor. current catalogue
+writers record `prior_install_chain_head` instead, and
+`skill.catalog.install` / `skill.catalog.upgrade` records are exempt
+from the anchor check so segments written by older versions do not
+report a defect that has been removed. those records are still fully
+covered by the MAC and by `prev_hmac` linkage.
+
+run from cron (every 15 min is fine - the verify is read-only and a
+day's worth of events checks in milliseconds):
+
+```cron
+*/15 * * * * cd /srv/bernstein && bernstein audit verify --hmac-only \
+  >> /var/log/bernstein/audit-verify.log 2>&1 || \
+  /usr/local/bin/page-on-call.sh "bernstein audit verify failed"
+```
+
+### Startup self-check
+
+on every orchestrator start, bernstein re-verifies the last 100
+entries automatically (`verify_on_startup` in
+`src/bernstein/core/security/audit_integrity.py`). a key with
+loose permissions raises `AuditKeyPermissionError` and the
+orchestrator **refuses to start** - that's by design. clean up the
+permissions, don't bypass the check.
+
+### Verifying without the CLI
+
+if you only have python and the audit volume (e.g. an offline
+auditor laptop), call the module directly:
+
+```python
+from pathlib import Path
+from bernstein.core.security.audit_integrity import verify_audit_integrity
+
+result = verify_audit_integrity(Path(".sdd/audit"), count=10_000)
+print(result.valid, result.entries_checked, result.errors)
+```
+
+### Merkle seal (second integrity layer)
+
+`bernstein audit seal` writes a Merkle root over the daily `*.jsonl`
+files into `.sdd/audit/merkle/seal-<ISO>.json`. it is a file-level
+integrity layer on top of the per-line HMAC chain: it detects a
+deleted, inserted, reordered, or content-tampered daily file.
+
+what the seal binds:
+
+- **leaf per file** - each file's leaf is the hash of its canonical
+  byte content, so flipping any byte of any line (not just the last)
+  changes the leaf and trips `TAMPERED` on verify.
+- **prefix, not whole file, on verify** - the seal also pins each
+  segment's byte length. verification recomputes the leaf over exactly
+  those bytes, so rows appended after the seal (a run closing after its
+  own finalization, say) are reported as `Post-seal rows` instead of as
+  tamper. an edit *inside* the sealed prefix, or a segment shorter than
+  its pin, still trips `TAMPERED` and exits non-zero.
+- **domain-separated tree** - leaves are hashed `H(0x00 || bytes)` and
+  internal nodes `H(0x01 || left || right)` (RFC-6962 style). a lone
+  node at an odd level is promoted unchanged rather than paired with
+  itself, so a leaf set with its last entry duplicated cannot collide
+  with the un-duplicated set.
+- **chain precheck** - `audit seal` verifies the HMAC chain before
+  writing the root. a broken chain aborts and **no seal is written**;
+  unacknowledged tear evidence (see below) aborts the same way. this
+  precheck alone does *not* stop laundering: a crash that truncates
+  the newest segment back to a record boundary leaves the HMAC chain
+  intact, so a chain-only precheck waves the shrunk history through.
+  that is what the checkpoint gate exists for. seal a known-broken
+  chain on purpose only via the recovery procedure below.
+- **checkpoint gate** - after every successful seal, a signed
+  checkpoint pins the chain origin, the total record count, and each
+  sealed segment's exact byte length and content hash into
+  `.sdd/audit/checkpoints/checkpoints.jsonl` (append-only, HMAC-signed
+  with the audit key, each checkpoint chained to its predecessor's
+  hash; kept outside `merkle/`, which the seal job writes). the next
+  `audit seal` refuses unless the current tree is a **consistent
+  extension** of the last checkpoint: the record count has not
+  decreased, and every pinned segment reproduces its checkpointed
+  hash from its current byte prefix (live or archived). a shrunk or
+  rewritten history therefore cannot obtain a fresh accepted seal:
+  the seal job exits non-zero naming the checkpoint it conflicts
+  with, on every run, until an operator acknowledges the divergence
+  with `bernstein audit ack-tear`. the superseded checkpoint is never
+  deleted, so the evidence of what was pinned stays on disk
+  permanently.
+
+scheme versioning: seals carry a `"scheme"` field. verification
+dispatches on it, so seals written before this hardening (`scheme` 1,
+or absent) still verify under their original rule. roots produced
+before and after the upgrade are **not comparable** - re-seal once
+after upgrading, and keep any pinned pre-upgrade root labelled as the
+old scheme. this is a scheme upgrade, not a tamper alert.
+
+### Incremental verification and the published read layout
+
+the writer appends to the live `*.jsonl` segments under the chain lock.
+a seal publishes, beside them, what a reader verifies against:
+
+| path (under `.sdd/audit/`) | written | reader trusts it because |
+|---|---|---|
+| `checkpoints/latest.json` | replaced on every accepted seal (temp file, fsync, rename, directory fsync) | HMAC-signed with the audit key |
+| `checkpoints/checkpoints.jsonl` | appended, never rewritten | each line HMAC-signed and chained to its predecessor |
+| `tiles/<segment>.tile` | by `audit seal` when that segment's sealed prefix changed, same publish path as the pointer | it doesn't: a tile is checked, never trusted |
+
+`AuditLog.verify_incremental()` reads the newest checkpoint (the pointer,
+falling back to the ledger), and for each segment trusts the prefix the
+checkpoint pins only when those bytes still hash to the signed leaf and
+the prefix's first record links to the head the walk has reached. only
+the records appended after the pin are parsed and HMAC-checked, so after
+a seal, appending N records costs a walk of N records. a segment the
+checkpoint does not pin, or whose pinned prefix no longer reproduces, is
+walked in full, and every finding names the same `segment:line` a full
+`verify()` names. a log sealed before checkpoints existed has no pin and
+is walked in full.
+
+the pins are evidence about length as well as content. a segment cut back
+to a record boundary, or deleted outright, leaves a chain that still walks
+clean, so `verify()` alone passes it. the incremental verifier reports a
+pinned segment that is gone, shorter than its pin, or whose pinned prefix
+changed under a chain that still verifies, naming the segment, with the
+same wording the checkpoint pillar of `bernstein audit verify` uses. an
+`ack-tear` acknowledgement for that checkpoint clears it, exactly as it
+does for the checkpoint pillar. records appended after the newest seal
+are pinned by nothing, so removing them is not detectable from this
+directory alone; that is what external anchors and witness co-signatures
+(below) are for.
+
+a tile is unsigned, so editing a segment and rewriting its tile to match
+buys nothing: the edit fails the signed leaf and the segment is walked.
+each tile is compared byte for byte with the tile the seal would publish
+for the bytes this run authenticated, so a flipped byte in a tile is
+reported as `tiles/<segment>.tile: ...` rather than passing unnoticed.
+tiles are rendered with LF line endings on every platform, so identical
+directories publish identical tile bytes; tiles written by earlier
+releases with CRLF on Windows still verify.
+
+the run takes no lock and needs no write access: it works against a
+read-only copy while a writer appends to the live directory. its one write,
+the tile-read counter behind `last_tile_read_count()`, is best-effort and
+never part of the verdict.
+
+not yet covered: `bernstein audit verify` still walks every segment, the
+unchanged prefixes are still read once to be hashed, and a seal over a
+segment that grew since the last seal replaces that segment's tile.
+
+### Tears: crash damage at the chain tail
+
+a crashed append is not a clean truncation. file size can be
+persisted before data blocks, so the tail of the newest segment can
+hold a partial line, bytes that parse as JSON but fail their MAC, or
+bytes that are not UTF-8 at all. every such non-verifying suffix is
+classified as a **tear**, with the byte offset of the last verifiable
+record, and reported by `bernstein audit verify` as a verdict
+distinct from chain corruption.
+
+what happens around a tear:
+
+- **the next append seals it.** the writer terminates the damaged
+  tail and appends a `chain.torn_record` event - terminator and
+  evidence in one write, fsynced - so the record being written can
+  never fuse onto the fragment, and the evidence that a record was
+  damaged is itself HMAC-chained. nothing is ever truncated or
+  repaired in place.
+- **the evidence is durable.** `audit verify` keeps failing and
+  `audit seal` keeps refusing, on every run, until an operator
+  acknowledges the tear. sealing does not clear it, appending does
+  not clear it, and re-sealing does not clear it.
+- **acknowledgement is explicit and chain-resident.**
+  `bernstein audit ack-tear --segment <file> --offset <byte> --reason
+  "..."` appends a `chain.tear_acknowledged` record naming the tear
+  exactly as verify printed it. after that, verification passes again
+  and the next seal records a new checkpoint - while the torn bytes,
+  the tear record, the acknowledgement, and the superseded checkpoint
+  all stay in the history permanently.
+
+scope, stated honestly: the checkpoint gate makes a shrink
+non-launderable by the seal job and detectable by every verify run
+against the local directory. an actor with write access to **both**
+the chain segments and the checkpoints file can still rewind both to
+a mutually consistent earlier state; catching that needs retention
+outside the writer's filesystem, which is what external anchors are.
+
+### External anchors: retention outside this machine
+
+everything the checkpoint gate compares against is material we hold.
+an actor who controls the audit directory holds all of it, so they
+can roll all of it back together and every local check passes. an
+**anchor** is the part they cannot reproduce: an RFC 3161 timestamp
+token, issued by a TSA, over `sha256(canonical checkpoint payload)`.
+the checkpoint payload already pins the origin, the record count and
+the per-segment leaves, so timestamping it timestamps the claim about
+how long the history was - and a TSA will not issue a token dated
+earlier.
+
+anchoring is optional, off by default, and bernstein never contacts a
+TSA. the operator makes the request and hands back the response:
+
+```bash
+# 1. what to timestamp
+bernstein audit anchor --print-request
+
+# 2. ask your TSA (any RFC 3161 endpoint)
+openssl ts -query -digest <digest> -sha256 -cert -no_nonce -out req.tsq
+curl -sS -H 'Content-Type: application/timestamp-query' \
+     --data-binary @req.tsq <tsa-url> -o resp.tsr
+
+# 3. record it beside the checkpoint
+bernstein audit anchor --rfc3161-token resp.tsr --rfc3161-tsa-url <tsa-url>
+```
+
+anchors live in `.sdd/audit/checkpoints/anchors.jsonl`, append-only
+and fsynced, beside `checkpoints.jsonl` and never inside it: a
+checkpoint payload carries no timestamps by design, and folding a
+token into it would break the byte-determinism of the checkpoints
+file. the record copies the anchored `origin`, `entry_count` and
+`checkpoint_root` out of the checkpoint, so deleting the checkpoints
+file does not delete the number the anchor was pinning.
+
+`bernstein audit verify` then runs an **external anchors** pillar:
+
+- the token must parse and its `messageImprint` must cover the
+  checkpoint payload the anchor names. this needs nothing from the
+  operator, so it always runs.
+- pass `--rfc3161-trusted-tsa-bundle <roots.pem>` to also authenticate
+  the issuing TSA. without it the token is bound to the checkpoint but
+  the signer is not identified - verify says so in its output.
+- a local history shorter than the newest anchored record count, a
+  different chain origin, or an anchored checkpoint that is no longer
+  on record are all **contradictions**, and each exits non-zero naming
+  the anchor.
+
+an anchor contradiction is **not** clearable with `audit ack-tear`.
+an acknowledgement records that an operator looked at local damage;
+it cannot withdraw a signature a third party made. restore the
+missing history, or treat the anchored range as unaccounted for.
+
+keep a copy of `anchors.jsonl` off the machine that writes it. an
+anchor deleted together with the history it contradicts protects
+nothing - which is why `bernstein doctor` reports the anchoring state
+(`never anchored` / `anchored at N entries, last at T`) rather than
+letting an unanchored install look as strong as an anchored one.
+
+still open, and deliberately not shipped here: operator-supplied
+external sinks (object lock, append-only bucket) for checkpoint
+retention.
+
+### Witness co-signatures: a second party that remembers
+
+an anchor says a history of a given size existed at a point in time.
+a **witness** says something the local host cannot say about itself:
+that it already accepted a tree this one has to extend. a witness is
+a minimal second party - another host, a separate unix user, or an
+operator laptop - holding per-origin monotonic state (the newest
+checkpoint it accepted for a chain origin) and an ed25519 key.
+
+the witness co-signs only when the submitted checkpoint is a
+consistent extension of its pin. it refuses otherwise, and the cause
+is named:
+
+| cause | what it means |
+| --- | --- |
+| `size_regression` | the submitted tree holds fewer records than the pinned one |
+| `state_mismatch` | a second tree at the size the witness already pinned, or a different origin |
+| `inconsistent_extension` | a pinned segment is gone, shrank, or changed under a length it was pinned at; or the submitted leaves do not rebuild the submitted root |
+
+three commands, one per host:
+
+```bash
+# on the log host: the checkpoint payload, no secrets in it
+bernstein audit witness export --out cp.json
+
+# on the witness: check against its own state, then co-sign
+bernstein audit witness cosign --checkpoint cp.json --key witness.key \
+    --state-dir ~/.bernstein-witness --out cosig.json
+
+# on the log host: store it, checked under the key you pin
+bernstein audit witness record --cosignature cosig.json --witness-key witness.pub
+```
+
+co-signatures live in `.sdd/audit/checkpoints/cosignatures.jsonl`,
+append-only and fsynced, beside `checkpoints.jsonl` and never inside
+it - same reason as anchors. witness state lives in the witness's own
+directory, one file per chain origin, written temp-file + rename +
+fsync so a crash leaves the old pin rather than a truncated one.
+
+`bernstein audit verify` then runs a **witness co-signatures** pillar:
+
+- pass `--witness-key <witness.pub>` to authenticate the recorded
+  co-signatures. without it they are reported as present but
+  unauthenticated and drive no verdict: a witness key taken from the
+  record itself is a witness vouching for itself.
+- pass `--witness-state <dir>` as well to read the witness's own pins
+  directly. that is the copy an actor who rewinds the local history
+  cannot delete.
+- a local history shorter than the newest witnessed record count, a
+  different chain origin, or a witnessed checkpoint that is no longer
+  on record are all **contradictions**, and each exits non-zero naming
+  the witnessed checkpoint.
+
+what the witness does *not* check: it never sees the audit key or the
+chain segments, so it cannot re-hash a segment prefix. a pinned
+segment that grew is accepted on the strength of the local gate, which
+does hold the bytes. what the witness adds is the memory.
+
+a witness holding no state for a chain co-signs and says so - a first
+acceptance, or one taken after the state was lost, proves nothing
+about history before it. that is the local-only guarantee again, and
+`witness cosign` prints it rather than passing silently. keep the
+state directory backed up for the same reason you keep
+`anchors.jsonl` off the writing machine.
+
+a witness contradiction is **not** clearable with `audit ack-tear`,
+for the same reason an anchor contradiction is not.
+
+## Replaying a log
+
+the `query` verb walks all JSONL files under `.sdd/audit/` and
+streams matching events back as a table - handy for "show me what
+this actor did between these two timestamps":
+
+```bash
+bernstein audit query --actor orchestrator --since 2026-05-07
+bernstein audit query --event-type task.transition --limit 200
+bernstein audit show --limit 50           # tail of the live log
+```
+
+note that `query` does not re-verify hmacs - pair it with
+`bernstein audit verify` if the question is "is this trustworthy",
+not "what happened".
+
+## Slicing a deterministic subset
+
+`bernstein audit slice` writes a deterministic JSONL subset of the
+audit log between two HMAC anchors. The output is byte-stable -
+each line is `sort_keys`-serialised - so a downstream replayer can
+hash the slice directly. The HMAC chain inside the slice is
+re-verified before the file is written; a structural mismatch
+aborts the export.
+
+```bash
+# Slice a closed range
+bernstein audit slice --from <hash> --to <hash> -o /tmp/slice.jsonl
+
+# Head-anchored: from genesis through a known checkpoint
+bernstein audit slice --to <hash> -o /tmp/head.jsonl
+
+# Tail-anchored: from a known checkpoint through the latest entry
+bernstein audit slice --from <hash> -o /tmp/tail.jsonl
+```
+
+The slice CLI pairs with the multi-tenant export in
+[Multi-tenant audit slices](audit-multitenant.md) when an auditor
+needs a tenant-scoped, signed bundle rather than the raw JSONL.
+
+## Retention and rotation
+
+daily rotation happens on every `log()` call (the file path is
+derived from today's UTC date). there is no in-process compaction;
+old files are gzipped into `.sdd/audit/archive/` by
+`AuditLog.archive(RetentionPolicy(retention_days=…))`, default 90
+days. invoke it from a maintenance job or a periodic timer.
+
+each segment's compress and unlink run inside one cross-process append
+section, taken per segment rather than once for the whole pass. the
+pair is not separable: the `.gz` holds the segment as the compress read
+it, so an append landing between the copy and the unlink would exist
+only in the file about to be removed. readers are tolerant of the same
+window from the other side - a segment that disappears between listing
+and reading is followed into its archived copy rather than raising, so
+a retention cycle can no longer take down an unrelated process.
+
+a minimal `logrotate` snippet, if you'd rather not run the python
+archiver:
+
+```
+/srv/bernstein/.sdd/audit/*.jsonl {
+    daily
+    rotate 90
+    compress
+    nocreate
+    missingok
+    notifempty
+    # do NOT use copytruncate - the orchestrator appends, truncating
+    # mid-write would corrupt the in-memory chain pointer
+}
+```
+
+avoid `copytruncate`. the orchestrator holds an open append handle
+and a python-side `_prev_hmac`; truncating under it produces a chain
+that disagrees with itself across a process restart.
+
+archive format guarantees: gzipped JSONL, the chain still verifies
+end-to-end across uncompressed + archived files as long as you feed
+both into the verifier.
+
+### The checkpoints file is exempt from rotation
+
+`.sdd/audit/checkpoints/checkpoints.jsonl` is load-bearing for shrink
+detection and **must not** be rotated, truncated, or edited: each
+checkpoint is hash-linked to its predecessor back to the first line,
+so removing early lines fails validation and blocks sealing. growth
+is modest - one small line per accepted seal that actually changed
+the tree (re-sealing an unchanged log appends nothing), each line
+pinning only the currently live segments - and it stays several
+orders of magnitude smaller than the chain it pins. if you snapshot
+audit history off-host, copy this file whole alongside the segments;
+the pinned prefixes verify against archived segments too.
+
+## Shipping to a SIEM
+
+bernstein ships in-process exporters for splunk HEC, elasticsearch,
+cloudwatch logs, syslog (RFC 5424), generic webhook, and a local file
+sink. they live in
+`src/bernstein/core/security/audit_export.py` and consume the same
+`AuditEntry` records the chain emits. configure via `bernstein.yaml`:
+
+```yaml
+audit_export:
+  target: splunk         # splunk | elasticsearch | cloudwatch | syslog | webhook | file
+  batch_size: 100
+  flush_interval_s: 30
+  splunk:
+    endpoint: https://splunk.example.com:8088
+    token: ${SPLUNK_HEC_TOKEN}
+    index: bernstein-audit
+    sourcetype: bernstein:audit
+```
+
+webhook payload, one batch:
+
+```json
+[
+  {
+    "timestamp": 1715091000.123,
+    "event_type": "task.transition",
+    "actor": "orchestrator",
+    "resource": "task/TASK-001",
+    "action": "claim",
+    "outcome": "success",
+    "details": {"from_status": "open", "to_status": "claimed"},
+    "hmac": "d4e5f6…",
+    "prev_hmac": "a1b2c3…",
+    "sequence": 4271,
+    "source": "bernstein-audit"
+  }
+]
+```
+
+retry behaviour: failed batches retry with exponential backoff
+(`max_retries`, `retry_backoff_s`) before being counted in
+`total_failed`. a batch that still fails writes an
+`audit.export.failed` event to the chain itself (when the exporter was
+constructed with a `failure_log`), so a silent forwarding outage shows
+up in `bernstein audit query` rather than being indistinguishable from
+quiet. the chain on disk is the source of truth - SIEM is a mirror,
+not the master copy. if the SIEM drops a batch, replay from
+`.sdd/audit/` with `bernstein audit query`.
+
+### Verifying an export without the source database
+
+Before issue #5034, `hmac` was the only field on an exported record, and
+it proves nothing to a receiver who never held the signing key: a
+deleted, reordered, or gapped record was invisible in the SIEM copy. Every
+`AuditEntry` now also carries `prev_hmac` and `sequence`, so the chain
+linkage survives the export.
+
+When the exporter is constructed with a `kms_adapter`
+(`bernstein.core.security.key_custody.KMSAdapter` -- the same Ed25519
+signer the lineage subsystem uses), each flushed batch is closed with a
+signed `SegmentReceipt`: first/last sequence, entry count, and the
+batch's chain-head hmac. `FileExporter` writes it as a trailing
+`{"segment_receipt": {...}}` line in the JSONL output.
+
+`bernstein audit verify-export <file>` reads that file back and reports
+whether it is contiguous, has a gap, was reordered, or was tampered with
+-- using only the file and, optionally, the signer's public key. An
+export produced before #5034 has no `sequence` field on its records, which
+reads as `sequence 0` on every record and is reported as `REORDERED` --
+that label means "this export predates the feature", not "records were
+reordered"; re-export with the current build to check it properly.
+
+```bash
+bernstein audit verify-export .sdd/exports/audit.jsonl
+bernstein audit verify-export .sdd/exports/audit.jsonl --public-key signer-public.jwk.json
+```
+
+Without `--public-key`, each receipt's embedded key is trusted on first
+use -- the command's `PASSED` panel says so explicitly (`Trust: signer
+trusted on first use -- authenticity NOT verified, re-run with
+--public-key`), because an attacker who rewrites the export and re-signs
+every receipt with their own key passes an unpinned check. Pin the signer
+with `--public-key` to actually verify authenticity: a receipt signed by
+any other key is then reported as `TAMPERED`. An export with no segment
+receipts at all reports `Trust: no segment receipts -- sequence continuity
+only` -- there is no signature evidence to check in that case.
+
+What the command proves either way is that the export is **contiguous, in
+order, and chain-linked**: each record's `prev_hmac` matches the previous
+record's stored `hmac`. It does not recompute any record's `hmac` from its
+content, so it cannot detect a record whose `details` were edited while
+its stored `hmac` was left alone -- that is a content-integrity question,
+answered only by `bernstein audit verify` against the source database and
+the HMAC signing key. This is the property that makes the SIEM copy a
+portable, offline-verifiable segment of the chain rather than just a log:
+a SOC analyst or auditor can check completeness and order for themselves,
+without holding the key.
+
+### Sample dashboards
+
+splunk:
+```
+index=bernstein-audit | stats count by event_type, actor
+index=bernstein-audit event_type=task.transition outcome=failure
+```
+
+datadog (via webhook → log intake):
+```
+service:bernstein-audit @event_type:task.transition @outcome:failure
+```
+
+## When the chain breaks
+
+a real tamper looks like one or both of:
+
+- `prev_hmac mismatch` - someone deleted or reordered an entry.
+- `HMAC mismatch` - someone edited an entry's payload after the fact.
+
+rare benign causes:
+
+- partial write at process kill (last line truncated, or garbage bytes
+  in the tail). reported as **tear evidence** with the byte offset of
+  the last verifiable record - a verdict distinct from an hmac
+  mismatch - and cleared only by `bernstein audit ack-tear` after you
+  have looked (see the tears section above).
+- key rotation done without archive-then-clear (see above).
+- legacy log written under the old `.hmac_key` filename, now read
+  with the XDG-default key.
+
+### Recovery procedure
+
+1. **freeze the volume**. don't `rm`, don't restart the orchestrator
+   yet. snapshot `.sdd/audit/` somewhere read-only.
+2. capture full verification output:
+
+   ```bash
+   bernstein audit verify > /tmp/audit-verify.txt 2>&1; echo $?
+   ```
+
+3. diff the suspect line range against your SIEM mirror - if the
+   webhook / splunk export was healthy, the SIEM has the original
+   payload and you can identify exactly which fields were edited.
+4. seal the broken chain so the corruption is itself tamper-evident
+   forensically. a plain `audit seal` refuses a broken chain, refuses
+   unacknowledged tear evidence, and refuses a history that conflicts
+   with the last checkpoint - pass `--allow-broken-chain` to capture
+   the corrupted state on purpose. a forensic seal skips those gates
+   and **does not advance the checkpoint**, so the pinned history
+   stays exactly what the last accepted seal pinned:
+
+   ```bash
+   bernstein audit seal --allow-broken-chain
+   ```
+
+5. file an incident, preserve the snapshot, and start a fresh chain
+   per the rotation procedure above. **do not** rewrite hmacs to
+   "fix" the chain - that destroys the evidence.
+6. if the orchestrator can't start because of `AuditKeyPermissionError`,
+   tighten the key permissions and try again rather than pointing at
+   a different key - the existing log was signed with the original.
+
+## Diagnosing a run
+
+`bernstein audit verify` tells you the chain is intact; it does not tell
+you which step of a run first went wrong. `bernstein audit diagnose` does:
+it evaluates a failure signal as a pure predicate over the run's
+Merkle-chained journal (`.sdd/runs/<run_id>/journal.jsonl`) and names the
+first step at which the predicate holds, sealed into an Ed25519-signed,
+content-addressed diagnosis receipt you can re-derive offline.
+
+```bash
+# name the step that introduced the content hash the eval gate rejected
+bernstein audit diagnose <run_id> --signal gate --sign-key KEY
+
+# walk a tainted artefact's lineage back to the recording step
+bernstein audit diagnose <run_id> --signal artefact:out/report.md --sign-key KEY
+
+# localise a chain break (tamper / non-determinism) as a signed finding
+bernstein audit diagnose <run_id> --signal replay --sign-key KEY
+
+# re-derive the culprit offline and assert byte-identity with the receipt
+bernstein audit diagnose verify .sdd/evidence/diagnosis-<run_id>-<hash>.json \
+  --public-key PUB.pem
+```
+
+Fail-closed: a missing or empty journal, a journal with any unparsable
+line (torn or corrupted write), an unavailable audit HMAC key
+(load-only -- diagnose never creates key material), a chain-broken journal
+under a content signal, or a signal whose fingerprint appears in no
+recorded step all exit non-zero and write **no** receipt. The diagnosis is
+a projection of the signed record, never a heuristic log scan. Full
+runbook: [audit diagnose](../operations/audit-diagnose.md).
+
+## Cross-references
+
+- [SOC 2 audit mode quick start](AUDIT.md)
+- [Single-run fault localisation](../operations/audit-diagnose.md) -
+  `bernstein audit diagnose` runbook.
+- [Multi-tenant audit-chain export](audit-multitenant.md)
+- [DSSE / in-toto envelope](audit-dsse-envelope.md) - third-party-verifiable
+  wrapper over the Article 12 bundle.
+- [Standard verifiable audit receipts](audit-receipt.md) - project a chain
+  range into COSE_Sign1, in-toto, and RFC 6962 transparency envelopes an
+  off-the-shelf verifier validates with no Bernstein install.
+- [EU AI Act Article 12 evidence pack](../compliance/eu-ai-act-article-12-bundle.md)
+- [Security hardening guide](security-hardening.md)
+- [Disaster recovery runbook](../operations/disaster-recovery.md)
+- [Enterprise evaluation checklist](../ENTERPRISE.md#audit-and-recovery)
+- source: `src/bernstein/core/security/audit.py`,
+  `audit_integrity.py`, `audit_export.py`.
