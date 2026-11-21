@@ -1,0 +1,8 @@
+# audit: one audit row per check result, one git commit per command (the governance repo sherpa/ is a git repo).
+name      = "audit"
+version   = "1"
+requires  = ["base"]
+after     = []
+conflicts = []
+group     = "classic_lifecycle_pack"
+writes    = ["audit/"]

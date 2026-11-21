@@ -1,0 +1,51 @@
+# PPOtestDeerflow2 (placeholder name): Sherpa counterpart of deer-flow 2.0 for grid3,
+# written by deerflow/tools/gen_eq.py
+
+[[instance]]
+id        = "lead"
+lifecycle = "classic_lifecycle"
+upper     = "human"
+lower     = "lead"
+
+[[instance]]
+id        = "researcher"
+lifecycle = "classic_lifecycle"
+upper     = "lead"
+lower     = "researcher"
+
+[[instance]]
+id        = "analyst"
+lifecycle = "classic_lifecycle"
+upper     = "lead"
+lower     = "analyst"
+
+[[instance]]
+id        = "coder"
+lifecycle = "classic_lifecycle"
+upper     = "lead"
+lower     = "coder"
+
+[[instance]]
+id        = "general_purpose"
+lifecycle = "classic_lifecycle"
+upper     = "lead"
+lower     = "general_purpose"
+
+[seat.human]
+card = "cards/human.md"
+[seat.lead]
+card = "cards/lead.md"
+[seat.researcher]
+card = "cards/researcher_role.md"
+class = "researcher_role"
+[seat.analyst]
+card = "cards/analyst_role.md"
+class = "analyst_role"
+[seat.coder]
+card = "cards/coder_role.md"
+class = "coder_role"
+[seat.general_purpose]
+card = "cards/general_purpose.md"
+
+[policy.tool_call_limit]
+params = "researcher_role=50;analyst_role=50;coder_role=50;general_purpose=150"

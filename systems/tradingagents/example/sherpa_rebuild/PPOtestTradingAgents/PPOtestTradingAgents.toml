@@ -1,0 +1,168 @@
+# PPOtestTradingAgents: TradingAgents (TauricResearch/TradingAgents 9fa1196, default config) as Sherpa delegation.
+# The judges are the uppers: the Portfolio Manager under the person, the Research Manager under the Portfolio Manager.
+# TradingAgents' fixed graph edges become fixed_order: who must wait for whom (after.*), whom a judge must have
+# dispatched before it hands back (needs.*); parallel_wait_all makes those tasks end first. Every node runs once in
+# TradingAgents' default config (one debate round), so no task is sent back (reopen_limit 0). An analyst hands back
+# only its own report (seat_write_limit). Card text is TradingAgents' own prompt.
+
+# A cancelled task does not count as ended (mero #18874, #19191): without this an upper could cancel what a task
+# waits for and let it take off early. In TradingAgents no node can be skipped that way.
+[policy.waits_for]
+params = "ended=closed"
+
+[[instance]]
+id        = "portfolio_manager"
+lifecycle = "classic_lifecycle"
+upper     = "human"
+lower     = "portfolio_manager"
+
+[[instance]]
+id        = "research_manager"
+lifecycle = "classic_lifecycle"
+upper     = "portfolio_manager"
+lower     = "research_manager"
+
+[[instance]]
+id        = "memory_log"
+lifecycle = "classic_lifecycle"
+upper     = "portfolio_manager"
+lower     = "memory_log"
+
+[[instance]]
+id        = "trader"
+lifecycle = "classic_lifecycle"
+upper     = "portfolio_manager"
+lower     = "trader"
+
+[[instance]]
+id        = "aggressive_analyst"
+lifecycle = "classic_lifecycle"
+upper     = "portfolio_manager"
+lower     = "aggressive_analyst"
+
+[[instance]]
+id        = "conservative_analyst"
+lifecycle = "classic_lifecycle"
+upper     = "portfolio_manager"
+lower     = "conservative_analyst"
+
+[[instance]]
+id        = "neutral_analyst"
+lifecycle = "classic_lifecycle"
+upper     = "portfolio_manager"
+lower     = "neutral_analyst"
+
+[[instance]]
+id        = "market_analyst"
+lifecycle = "classic_lifecycle"
+upper     = "research_manager"
+lower     = "market_analyst"
+
+[[instance]]
+id        = "sentiment_analyst"
+lifecycle = "classic_lifecycle"
+upper     = "research_manager"
+lower     = "sentiment_analyst"
+
+[[instance]]
+id        = "news_analyst"
+lifecycle = "classic_lifecycle"
+upper     = "research_manager"
+lower     = "news_analyst"
+
+[[instance]]
+id        = "fundamentals_analyst"
+lifecycle = "classic_lifecycle"
+upper     = "research_manager"
+lower     = "fundamentals_analyst"
+
+[[instance]]
+id        = "bull_researcher"
+lifecycle = "classic_lifecycle"
+upper     = "research_manager"
+lower     = "bull_researcher"
+
+[[instance]]
+id        = "bear_researcher"
+lifecycle = "classic_lifecycle"
+upper     = "research_manager"
+lower     = "bear_researcher"
+
+[seat.human]
+card = "cards/human.md"
+[seat.portfolio_manager]
+card = "cards/portfolio_manager.md"
+[seat.research_manager]
+card = "cards/research_manager.md"
+[seat.market_analyst]
+card = "cards/market_analyst.md"
+[seat.sentiment_analyst]
+card = "cards/sentiment_analyst.md"
+[seat.news_analyst]
+card = "cards/news_analyst.md"
+[seat.fundamentals_analyst]
+card = "cards/fundamentals_analyst.md"
+[seat.bull_researcher]
+card = "cards/bull_researcher.md"
+[seat.bear_researcher]
+card = "cards/bear_researcher.md"
+[seat.memory_log]
+card = "cards/memory_log.md"
+[seat.trader]
+card = "cards/trader.md"
+[seat.aggressive_analyst]
+card = "cards/aggressive_analyst.md"
+[seat.conservative_analyst]
+card = "cards/conservative_analyst.md"
+[seat.neutral_analyst]
+card = "cards/neutral_analyst.md"
+
+
+[policy.fixed_order]
+params = "after.bull_researcher=market_analyst,sentiment_analyst,news_analyst,fundamentals_analyst,memory_log;after.bear_researcher=bull_researcher;after.trader=research_manager;after.aggressive_analyst=trader;after.conservative_analyst=aggressive_analyst;after.neutral_analyst=conservative_analyst;needs.research_manager=market_analyst,sentiment_analyst,news_analyst,fundamentals_analyst,bull_researcher,bear_researcher;needs.portfolio_manager=research_manager,memory_log,trader,aggressive_analyst,conservative_analyst,neutral_analyst"
+
+
+[policy.seat_write_limit]
+params = "market_analyst=reports/market_analyst.md;sentiment_analyst=reports/sentiment_analyst.md;news_analyst=reports/news_analyst.md;fundamentals_analyst=reports/fundamentals_analyst.md"
+
+
+[policy.reopen_limit]
+params = "portfolio_manager=0;research_manager=0;market_analyst=0;sentiment_analyst=0;news_analyst=0;fundamentals_analyst=0;bull_researcher=0;bear_researcher=0;memory_log=0;trader=0;aggressive_analyst=0;conservative_analyst=0;neutral_analyst=0"
+
+# R3 (each analyst runs only its own tools), R4 (no data after the run's date), R5 (only the run's instrument):
+# TradingAgents' tools become MCP tools of one server "trading", one tool per TradingAgents tool, the
+# arguments TradingAgents injects (symbol/ticker, dates) passed explicitly. The upper types the run's
+# --ticker and --date on every analyst dispatch; @ticker and @date read them from the task card.
+# TradingAgents rewrites a wrong symbol or a later date and hides both from the model; here the call is
+# refused and the reason names the allowed value. Two tools take no date (get_insider_transactions,
+# get_prediction_markets): TradingAgents limits them "as of" the run date by injection; here only the
+# tool itself can be allowed or refused. The non-analyst seats call no data tool (in TradingAgents they
+# have no tools). Every seat has the work tools of a Sherpa task: read reports and src, sherpa under its
+# own license, git add, and git commit only as `git commit -m <plain message>`: no long option, no short option
+# but -m, no character but letters, digits, space and ._/- (that shuts out --no-verify, its abbreviations,
+# clusters like -an, a quoted '-n' and a tab-separated -n; a tab could not be written here anyway: params
+# go into a TSV table); the price is a plain message;
+# an analyst writes only its own report. sherpa --inst is refused here; an abbreviation (--ins) gets past this
+# rule but the kernel refuses it (identity.mismatch with SHERPA_INST), and debrief re-runs the write checks.
+[policy.seat_tool_allowlist]
+params = """\
+market_analyst=mcp__trading__get_stock_data(symbol=@ticker,end_date<=@date),mcp__trading__get_indicators(symbol=@ticker,curr_date<=@date),mcp__trading__get_verified_market_snapshot(symbol=@ticker,curr_date<=@date),Write(reports/market_analyst.md),Edit(reports/market_analyst.md),Read(reports/**),Read(src/**),Bash(sherpa *,command!~*--inst*),Bash(git add *),Bash(git commit -m *,command!~*--*,command!~* -[!m]*,command!~*[!a-zA-Z0-9 ._/-]*);\
+sentiment_analyst=Write(reports/sentiment_analyst.md),Edit(reports/sentiment_analyst.md),Read(reports/**),Read(src/**),Bash(sherpa *,command!~*--inst*),Bash(git add *),Bash(git commit -m *,command!~*--*,command!~* -[!m]*,command!~*[!a-zA-Z0-9 ._/-]*);\
+news_analyst=mcp__trading__get_news(ticker=@ticker,end_date<=@date),mcp__trading__get_global_news(curr_date<=@date),mcp__trading__get_macro_indicators(curr_date<=@date),mcp__trading__get_prediction_markets,Write(reports/news_analyst.md),Edit(reports/news_analyst.md),Read(reports/**),Read(src/**),Bash(sherpa *,command!~*--inst*),Bash(git add *),Bash(git commit -m *,command!~*--*,command!~* -[!m]*,command!~*[!a-zA-Z0-9 ._/-]*);\
+fundamentals_analyst=mcp__trading__get_fundamentals(ticker=@ticker,curr_date<=@date),mcp__trading__get_balance_sheet(ticker=@ticker,curr_date<=@date),mcp__trading__get_cashflow(ticker=@ticker,curr_date<=@date),mcp__trading__get_income_statement(ticker=@ticker,curr_date<=@date),mcp__trading__get_insider_transactions(ticker=@ticker),Write(reports/fundamentals_analyst.md),Edit(reports/fundamentals_analyst.md),Read(reports/**),Read(src/**),Bash(sherpa *,command!~*--inst*),Bash(git add *),Bash(git commit -m *,command!~*--*,command!~* -[!m]*,command!~*[!a-zA-Z0-9 ._/-]*);\
+portfolio_manager=Write(src/**),Edit(src/**),Read(reports/**),Read(src/**),Bash(sherpa *,command!~*--inst*),Bash(git add *),Bash(git commit -m *,command!~*--*,command!~* -[!m]*,command!~*[!a-zA-Z0-9 ._/-]*);\
+research_manager=Write(src/**),Edit(src/**),Read(reports/**),Read(src/**),Bash(sherpa *,command!~*--inst*),Bash(git add *),Bash(git commit -m *,command!~*--*,command!~* -[!m]*,command!~*[!a-zA-Z0-9 ._/-]*);\
+memory_log=Write(src/**),Edit(src/**),Read(reports/**),Read(src/**),Bash(sherpa *,command!~*--inst*),Bash(git add *),Bash(git commit -m *,command!~*--*,command!~* -[!m]*,command!~*[!a-zA-Z0-9 ._/-]*);\
+trader=Write(src/**),Edit(src/**),Read(reports/**),Read(src/**),Bash(sherpa *,command!~*--inst*),Bash(git add *),Bash(git commit -m *,command!~*--*,command!~* -[!m]*,command!~*[!a-zA-Z0-9 ._/-]*);\
+bull_researcher=Write(src/**),Edit(src/**),Read(reports/**),Read(src/**),Bash(sherpa *,command!~*--inst*),Bash(git add *),Bash(git commit -m *,command!~*--*,command!~* -[!m]*,command!~*[!a-zA-Z0-9 ._/-]*);\
+bear_researcher=Write(src/**),Edit(src/**),Read(reports/**),Read(src/**),Bash(sherpa *,command!~*--inst*),Bash(git add *),Bash(git commit -m *,command!~*--*,command!~* -[!m]*,command!~*[!a-zA-Z0-9 ._/-]*);\
+aggressive_analyst=Write(src/**),Edit(src/**),Read(reports/**),Read(src/**),Bash(sherpa *,command!~*--inst*),Bash(git add *),Bash(git commit -m *,command!~*--*,command!~* -[!m]*,command!~*[!a-zA-Z0-9 ._/-]*);\
+conservative_analyst=Write(src/**),Edit(src/**),Read(reports/**),Read(src/**),Bash(sherpa *,command!~*--inst*),Bash(git add *),Bash(git commit -m *,command!~*--*,command!~* -[!m]*,command!~*[!a-zA-Z0-9 ._/-]*);\
+neutral_analyst=Write(src/**),Edit(src/**),Read(reports/**),Read(src/**),Bash(sherpa *,command!~*--inst*),Bash(git add *),Bash(git commit -m *,command!~*--*,command!~* -[!m]*,command!~*[!a-zA-Z0-9 ._/-]*)"""
+
+# R8 (an analyst calls tools at most max_tool_rounds = 20 rounds): at most 26 tool calls per analyst task,
+# 20 for data plus 6 work calls (brief, takeoff, write the report, git add, git commit, debrief).
+# TradingAgents counts model rounds that call tools and gives a last round without tools to write the
+# report; here every call counts and the 27th is refused, report-writing and debrief included.
+[policy.tool_call_limit]
+params = "market_analyst=26;sentiment_analyst=26;news_analyst=26;fundamentals_analyst=26"

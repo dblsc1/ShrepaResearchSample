@@ -1,0 +1,5 @@
+#!/bin/sh
+# Dev entry for the 0.3 tree: runs the package in ../sherpa without installing it.
+# -P keeps the caller's cwd off sys.path, so the frozen old tree's sherpa/ never shadows this one.
+here=$(cd "$(dirname "$0")/.." && pwd)
+PYTHONPATH="$here${PYTHONPATH:+:$PYTHONPATH}" exec python3 -P -m sherpa "$@"

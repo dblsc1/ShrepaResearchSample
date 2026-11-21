@@ -1,0 +1,2 @@
+name	kind	impl	locked
+seat_write_limit	check	seat_write_limit.py	no

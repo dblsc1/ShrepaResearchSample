@@ -1,0 +1,26 @@
+{
+ "about": "F17: the worker reads inside its seat's data (Grep in src/)",
+ "workflow": "PPOtestToolGate",
+ "steps": [
+  {
+   "by": "human",
+   "run": "dispatch",
+   "options": {
+    "to": "worker",
+    "goal": "fix a",
+    "scope": "src/"
+   }
+  },
+  {
+   "by": "worker",
+   "run": "tool-call",
+   "options": {
+    "tool": "Grep",
+    "input": "{\"pattern\": \"a\", \"path\": \"src\"}"
+   },
+   "expect": {
+    "exit": 0
+   }
+  }
+ ]
+}

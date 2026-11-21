@@ -1,0 +1,13 @@
+# review_model_differs: a review task may not be reviewed by the same model that did the work.
+# Bernstein's cross-model check (cross_model_verifier.py:172-182): when an explicit reviewer model is
+# configured and equals the writer's model, the review is refused. Off unless the workflow file sets it:
+# [policy.review_model_differs] params = "reviewer_model=opus;models=backend:sonnet,frontend:sonnet"
+name      = "review_model_differs"
+version   = "1"
+requires  = ["base", "classic_lifecycle"]
+after     = []
+conflicts = []
+group     = "classic_lifecycle_pack"
+writes    = []
+provides  = []
+reads     = ["archive"]

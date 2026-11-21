@@ -1,0 +1,19 @@
+rule	shared_rule	lead	general-purpose	bash	n_named	清单「点名」	对不上
+V01	-				0	-	
+V02	-				0	-	
+V03	-				0	-	
+V04	-			1	1	bash	
+V05	write				0	-	
+V06	cap				0	-	
+V07	cap				0	-	
+V08	cap				0	-	
+V09	cap				0	-	
+V10	cap				0	-	
+V11	cap				0	-	
+V12	review				0	-	
+V13	-				0	-	
+V14	write				0	-	
+V15	-				0	-	
+V16	-			1	1	-	bash
+V17	-				0	-	
+V18	cap				0	-	

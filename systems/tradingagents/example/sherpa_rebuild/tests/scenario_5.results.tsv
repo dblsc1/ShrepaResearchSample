@@ -1,0 +1,4 @@
+case	given	who	does	on	args	expect	rule	source	got	reds	match	error
+S5-1	@open ; @reports ; @debate ; @plan ; @trade ; commit PM empty	portfolio_manager	debrief	PM		pass		test_allowed_the_proposal_goes_straight_to_the_portfolio_manager	pass		yes	
+S5-2	@open ; @reports ; @debate ; @plan	portfolio_manager	dispatch	trader		block	fixed_order.missing_wait	test_rejected_the_research_review_still_cannot_be_skipped: the trader still waits for the research plan	block	fixed_order.missing_wait	yes	
+S5-3	@open ; @reports ; commit RM empty	research_manager	debrief	RM		block	fixed_order.missing_lower	same test: the Research Manager still cannot decide without the debate	block	fixed_order.missing_lower	yes	

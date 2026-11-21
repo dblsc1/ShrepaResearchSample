@@ -1,0 +1,4 @@
+# A review is a task: dispatch --reviews <tasks>. Locked: a workflow that lets people review their own
+# work disables this pack instead (human 2026-10-30).
+command	check	stage	action	params	locked
+dispatch	author_is_not_reviewer	general	block	-	yes

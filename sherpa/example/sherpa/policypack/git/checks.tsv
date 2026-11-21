@@ -1,0 +1,5 @@
+# git rules.
+command	check	stage	action	params	locked
+takeoff	git_rules	general	block	-	no
+landing	git_rules	general	block	-	no
+receipt	git_rules	general	block	-	no

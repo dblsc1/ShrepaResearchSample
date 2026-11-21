@@ -1,0 +1,3 @@
+# One tool call of the task's agent, typed by the PreToolUse hook. No state change; a closed or cancelled task allows no more tool calls.
+command	roles	actor	object	from	to	body
+tool-call	@lower	task_card.card.assignee	tasks	dispatched,briefed,onAir,landed,debriefed,cancelling	-	tool_ledger_write

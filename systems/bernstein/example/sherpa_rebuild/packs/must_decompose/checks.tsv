@@ -1,0 +1,2 @@
+command	check	stage	action	params	locked
+debrief	dispatched_enough	general	block	-	no

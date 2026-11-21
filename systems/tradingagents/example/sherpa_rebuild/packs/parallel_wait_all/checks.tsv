@@ -1,0 +1,2 @@
+command	check	stage	action	params	locked
+debrief	dispatched_tasks_ended	general	block	ended=closed,cancelled	no

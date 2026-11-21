@@ -1,0 +1,8 @@
+# PPOtestTradingAgents: the Sherpa counterpart of TradingAgents' default graph (pairing design, protocol section 12).
+name      = "PPOtestTradingAgents"
+version   = "1"
+requires  = ["base", "classic_lifecycle", "waits_for", "parallel_wait_all", "fixed_order", "seat_write_limit", "reopen_limit", "seat_tool_allowlist", "tool_call_limit"]
+after     = []
+conflicts = []
+group     = "custom_lifecycle"
+writes    = []

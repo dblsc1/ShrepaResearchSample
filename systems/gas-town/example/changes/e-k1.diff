@@ -1,0 +1,118 @@
+diff --git a/internal/cmd/done.go b/internal/cmd/done.go
+index c9281b9..04721fb 100644
+--- a/internal/cmd/done.go
++++ b/internal/cmd/done.go
+@@ -68,6 +68,7 @@ var (
+ 	donePreVerified   bool
+ 	doneTarget        string
+ 	doneSkipVerify    bool
++	doneRelay         string // grid5: the text handed back
+ )
+ 
+ // Valid exit types for gt done
+@@ -660,6 +661,7 @@ func init() {
+ 	doneCmd.Flags().BoolVar(&doneResume, "resume", false, "Resume from last checkpoint (auto-detected, for Witness recovery)")
+ 	doneCmd.Flags().BoolVar(&donePreVerified, "pre-verified", false, "Mark MR as pre-verified (polecat ran gates after rebasing onto target)")
+ 	doneCmd.Flags().StringVar(&doneTarget, "target", "", "Explicit MR target branch (overrides formula_vars and auto-detection)")
++	doneCmd.Flags().StringVar(&doneRelay, "relay", "", "Text handed back; it ends with the marker lines (grid5)")
+ 	doneCmd.Flags().BoolVar(&doneSkipVerify, "skip-verify", false, "Skip verified-push checks for audit/test-only completion (recorded on bead)")
+ 
+ 	rootCmd.AddCommand(doneCmd)
+@@ -1012,6 +1014,10 @@ func runDone(cmd *cobra.Command, args []string) (retErr error) {
+ 				reviewOnlySource = af.ReviewOnly
+ 			}
+ 		}
++		// grid5 form rules: the text handed back (--relay) carries the marker lines (marks_rules.go).
++		if err := checkMarksHandOver(doneRelay); err != nil {
++			return err
++		}
+ 
+ 		// If no commits ahead, work was likely already merged or is a legitimate
+ 		// report-only completion. Fork-backed rigs must not infer success from fork main.
+diff --git a/internal/cmd/marks_rules.go b/internal/cmd/marks_rules.go
+new file mode 100644
+index 0000000..b3a6d34
+--- /dev/null
++++ b/internal/cmd/marks_rules.go
+@@ -0,0 +1,65 @@
++package cmd
++
++// grid5 form rules, named family (placeholder names; mero #25667). Every hand-over's text ends
++// with marker lines, one per rule; they are checked where the text is handed over, as the grid3 relay rules are:
++//   dispatch   gt sling --args "<text>"   in sling next to the bead guards (sling.go, R14's place)
++//   hand-back  gt done --relay "<text>"   in done next to the zero-commit guard (done.go, R20's place)
++// Gas Town has no step where the receiver accepts or refuses work, so the text is checked as it is handed over.
++// Named: rule n<i> wants a line "n<i>: <word>" with the word of the giver's role in rule i's table. The tables are
++// per-role maps written like the per-role value tables of config/cost_tier.go:62-133 (CostTierRoleAgents); a role
++// added to Gas Town (as tinker was, branch razu/add-role-tinker) gets an entry in each table. Polecats are a pool:
++// every polecat has the role polecat and its entry.
++
++import (
++	"fmt"
++	"strings"
++)
++
++// marksN1 is rule n1's word per role.
++var marksN1 = map[Role]string{
++	RoleMayor:    "amber",
++	RoleDeacon:   "birch",
++	RoleDog:      "cedar",
++	RoleWitness:  "delta",
++	RoleRefinery: "ember",
++	RolePolecat:  "fable",
++	RoleCrew:     "garnet",
++}
++
++// marksRules lists the rules: one entry per rule.
++var marksRules = []struct {
++	key   string
++	words map[Role]string
++}{{"n1", marksN1}}
++
++func checkMarks(text string, role Role, _ string) error {
++	for _, rule := range marksRules {
++		want, ok := rule.words[role]
++		if !ok {
++			return fmt.Errorf("mark %s: role %s has no word in this rule's table", rule.key, role)
++		}
++		if got, _ := markLine(text, rule.key); got != want {
++			return fmt.Errorf("mark %s: %q is not the word of role %s", rule.key, got, role)
++		}
++	}
++	return nil
++}
++
++// markLine finds the marker line "<key>: <value>" in the text and returns its value.
++func markLine(text, key string) (string, bool) {
++	for _, line := range strings.Split(text, "\n") {
++		if v, ok := strings.CutPrefix(strings.TrimSpace(line), key+":"); ok {
++			return strings.TrimSpace(v), true
++		}
++	}
++	return "", false
++}
++
++// checkMarksHandOver: the caller hands the text over (gt sling --args, gt done --relay).
++func checkMarksHandOver(text string) error {
++	info, err := GetRole()
++	if err != nil {
++		return fmt.Errorf("mark: cannot tell who is handing over: %w", err)
++	}
++	return checkMarks(text, info.Role, info.ActorString())
++}
+diff --git a/internal/cmd/sling.go b/internal/cmd/sling.go
+index aaaa851..b99e55c 100644
+--- a/internal/cmd/sling.go
++++ b/internal/cmd/sling.go
+@@ -638,6 +638,11 @@ func runSling(cmd *cobra.Command, args []string) (retErr error) {
+ 		return fmt.Errorf("refusing to sling deferred bead %s: %q\nDeferred work should not consume polecat slots. Use --force to override", beadID, info.Title)
+ 	}
+ 
++	// grid5 form rules: the text handed down (--args) carries the marker lines (marks_rules.go).
++	if err := checkMarksHandOver(slingArgs); err != nil {
++		return err
++	}
++
+ 	originalStatus := info.Status
+ 	originalAssignee := info.Assignee
+ 	force := slingForce // local copy to avoid mutating package-level flag

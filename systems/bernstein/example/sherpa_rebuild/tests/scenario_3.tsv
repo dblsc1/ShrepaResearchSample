@@ -1,0 +1,5 @@
+case	given	who	does	on	args	expect	rule	source
+S3a	@mgr ; T1 = backend scope src/,pyproject.toml by manager ; start T1	backend	commit	T1	src/bernstein/core/foo.py	pass		test_scenario_3::test_backend_still_allowed_in_src
+S3b	@mgr ; T1 = backend scope src/,pyproject.toml by manager ; start T1	backend	commit	T1	pyproject.toml	block	seat_write_limit.outside_seat_paths	test_scenario_3::test_backend_now_denied_pyproject
+S3c	@mgr ; T1 = frontend scope package.json by manager ; start T1	frontend	commit	T1	package.json	pass		test_scenario_3::test_other_roles_unchanged (frontend)
+S3d	@mgr ; T1 = qa scope tests/,.github/ by manager ; start T1	qa	commit	T1	.github/workflows/ci.yml	block	seat_write_limit.outside_seat_paths	test_scenario_3::test_other_roles_unchanged (qa)

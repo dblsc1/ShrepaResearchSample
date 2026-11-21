@@ -1,0 +1,10 @@
+# The Sherpa counterpart of Bernstein's default organization (runner: _pairing/run_table.py)
+sherpa   = "../probe-r15"
+workflow = "PPOtestBernstein"
+packs    = ["base", "classic_lifecycle", "git", "worktree", "task_card", "write_scope", "waits_for",
+            "parallel_wait_all", "seat_write_limit", "must_decompose", "review_model_differs"]
+scope    = "src/"
+
+# Bernstein's workers get their tasks from the manager: every case starts with the manager's task in flight.
+[macros]
+mgr = "M = manager scope src/,tests/,docs/,plans/,.github/,package.json ; start M"

@@ -1,0 +1,14 @@
+rule	shared_rule	human	chief_editor	research	editor	reviewer	reviser	writer	publisher	fact_checker	visualizer	n_named	清单「点名」	对不上
+R01	review	1	b		1							2	editor、human	
+R02	cap		b									0	-	
+R03	review		b					1		1	1	3	fact_checker、visualizer、writer	
+R04	cap		b									0	-	
+R05	review				b	1	1					2	research、reviewer、reviser	research
+R06	cap				b							0	-	
+R07	order	1	b	1	1			1	1	1	1	7	editor、fact_checker、human、publisher、research、visualizer、writer	
+R08	-	b										0	-	
+R09	-					b						0	-	
+R10	-							b				0	-	
+R11	-								b			0	-	
+R12	-									b		0	-	
+R13	-	b										0	-	

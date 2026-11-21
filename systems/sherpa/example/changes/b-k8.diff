@@ -1,0 +1,12 @@
+diff --git a/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestScale/PPOtestScale.toml b/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestScale/PPOtestScale.toml
+index c45e6c7..b708fa2 100644
+--- a/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestScale/PPOtestScale.toml
++++ b/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestScale/PPOtestScale.toml
+@@ -17,6 +17,7 @@ id        = "backend_g1"
+ lifecycle = "classic_lifecycle"
+ upper     = "lead_g1"
+ lower     = "backend_g1"
++copies    = 8
+ 
+ [[instance]]
+ id        = "qa_g1"

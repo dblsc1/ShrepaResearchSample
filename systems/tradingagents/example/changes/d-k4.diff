@@ -1,0 +1,134 @@
+diff --git a/tradingagents/agents/state.py b/tradingagents/agents/state.py
+index b7941b3..d9ee47d 100644
+--- a/tradingagents/agents/state.py
++++ b/tradingagents/agents/state.py
+@@ -66,6 +66,11 @@ class RiskDebateState(TypedDict):
+     count: Annotated[int, "Length of the current conversation"]
+ 
+ 
++def merge_handoff(old: dict, new: dict) -> dict:
++    """Merge the handoffs that nodes running side by side hand over (form_rules)."""
++    return {**old, **new}
++
++
+ class AgentState(MessagesState):
+     company_of_interest: Annotated[str, "Company that we are interested in trading"]
+     asset_type: Annotated[str, "Asset type under analysis such as stock or crypto"]
+@@ -95,3 +100,4 @@ class AgentState(MessagesState):
+     past_context: Annotated[str, "Memory log context for the Portfolio Manager (same-ticker decisions + cross-ticker lessons), written by the Memory Log step"]
+     memory_note: Annotated[str, "What the Memory Log step could not settle or read this run, for the report; empty when all went well"]
+     portfolio_context: Annotated[str, "Caller-supplied holdings and cash, rendered at run start; empty when not provided"]
++    handoff: Annotated[dict, merge_handoff]  # each node's last handed-over text (form_rules)
+diff --git a/tradingagents/graph/form_rules.py b/tradingagents/graph/form_rules.py
+new file mode 100644
+index 0000000..786ed39
+--- /dev/null
++++ b/tradingagents/graph/form_rules.py
+@@ -0,0 +1,86 @@
++"""Form rules (grid5, placeholder rules): marker lines at the end of what a node hands over, one per rule;
++the node of the next step checks them as it takes the work over (the Portfolio Manager, with no one after it, checks
++its own as it hands out). FormGraph wraps every node of the graph (the Memory Log, a step and not a role, excepted)."""
++from langgraph.graph import END, StateGraph
++
++GENERIC_RULES = ["g1", "g2", "g3", "g4"]   # each: "g<i>: <the name of whoever hands over>"
++
++
++class FormRuleError(RuntimeError):
++    """A handoff failed a form rule; `rule` is its name (g<i> or n<i>)."""
++
++    def __init__(self, rule, message):
++        super().__init__(f"{rule}: {message}")
++        self.rule = rule
++
++
++def marker(text, rule):
++    """The value of the marker line "<rule>: ..." of a handed-over text, or None."""
++    for line in reversed(text.split("\n")):
++        if line.startswith(f"{rule}: "):
++            return line[len(rule) + 2:]
++    return None
++
++
++def handed_text(update):
++    """What a node hands over: the text it wrote this turn (a debate state's current responses and decision)."""
++    parts = []
++    for value in update.values():
++        if isinstance(value, str):
++            parts.append(value)
++        elif isinstance(value, dict):
++            parts += [v for k, v in value.items() if isinstance(v, str) and (k.startswith("current_") or k == "judge_decision")]
++    return "\n".join(p for p in parts if p)
++
++
++def ident(node):
++    return node.lower().replace(" ", "_")
++
++
++def marker_lines(node, got):
++    """The lines `node` writes: its own name in each rule."""
++    return [f"{rule}: {ident(node)}" for rule in GENERIC_RULES]
++
++
++def check(giver, text):
++    for rule in GENERIC_RULES:
++        if marker(text, rule) != ident(giver):
++            raise FormRuleError(rule, f"{giver} handed over {rule}: {marker(text, rule)!r}, not its own name")
++
++
++def hold(name, node, graph):
++    """Hold the node `name` to the form rules: check what it takes over, write its lines on what it hands over."""
++    is_graph = hasattr(node, "invoke")
++
++    def run(state, config):
++        step = config["metadata"]["langgraph_step"]
++        handoff = state.get("handoff") or {}
++        givers = sorted(g for g, e in handoff.items() if e["step"] == step - 1)   # who ran the step before
++        for giver in givers:
++            check(giver, handoff[giver]["text"])
++        update = node.invoke(state, config) if is_graph else node(state)
++        lines = marker_lines(name, [handoff[g]["text"] for g in givers])
++        text = "\n".join([p for p in (handed_text(update),) if p] + lines)
++        if name in graph.form_last:                  # no one takes it over: checked as it is handed out
++            check(name, text)
++        return {**update, "handoff": {name: {"step": step, "text": text}}}
++
++    return run
++
++
++class FormGraph(StateGraph):
++    """A StateGraph that holds every node it is given to the form rules."""
++
++    def __init__(self, *args, **kwargs):
++        super().__init__(*args, **kwargs)
++        self.form_last = set()
++
++    def add_node(self, node, action=None, **kwargs):
++        if action is not None and node != "Memory Log":
++            action = hold(node, action, self)
++        return super().add_node(node, action, **kwargs)
++
++    def add_edge(self, start_key, end_key):
++        if end_key == END:
++            self.form_last.add(start_key)
++        return super().add_edge(start_key, end_key)
+diff --git a/tradingagents/graph/setup.py b/tradingagents/graph/setup.py
+index e3a46b6..05a040a 100644
+--- a/tradingagents/graph/setup.py
++++ b/tradingagents/graph/setup.py
+@@ -29,6 +29,7 @@ from tradingagents.agents.state import AgentState
+ 
+ from .analyst_execution import build_analyst_execution_plan
+ from .conditional_logic import ConditionalLogic
++from .form_rules import FormGraph
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -151,7 +152,7 @@ class GraphSetup:
+         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
+         portfolio_manager_node = create_portfolio_manager(self.deep_thinking_llm)
+ 
+-        workflow = StateGraph(AgentState)
++        workflow = FormGraph(AgentState)
+ 
+         for spec in plan.specs:
+             workflow.add_node(spec.agent_node,

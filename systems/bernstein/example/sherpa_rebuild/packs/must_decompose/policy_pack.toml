@@ -1,0 +1,11 @@
+# must_decompose: the seats named in the workflow file hand their task back only after dispatching at least min tasks of their own.
+# [policy.must_decompose] only = ["seat_a"] params = "min=1". Without min it does nothing.
+name      = "must_decompose"
+version   = "1"
+requires  = ["base", "classic_lifecycle"]
+after     = []
+conflicts = []
+group     = "classic_lifecycle_pack"
+writes    = []
+provides  = []
+reads     = ["archive"]

@@ -1,0 +1,26 @@
+{
+ "about": "F16/C1/R3: the worker calls a tool of its seat (Read in src/)",
+ "workflow": "PPOtestToolGate",
+ "steps": [
+  {
+   "by": "human",
+   "run": "dispatch",
+   "options": {
+    "to": "worker",
+    "goal": "fix a",
+    "scope": "src/"
+   }
+  },
+  {
+   "by": "worker",
+   "run": "tool-call",
+   "options": {
+    "tool": "Read",
+    "input": "{\"file_path\": \"src/a.py\"}"
+   },
+   "expect": {
+    "exit": 0
+   }
+  }
+ ]
+}

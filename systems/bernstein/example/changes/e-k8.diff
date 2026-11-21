@@ -1,0 +1,292 @@
+diff --git a/src/bernstein/core/tasks/form_rules.py b/src/bernstein/core/tasks/form_rules.py
+new file mode 100644
+index 000000000..a3bade401
+--- /dev/null
++++ b/src/bernstein/core/tasks/form_rules.py
+@@ -0,0 +1,215 @@
++"""grid5 formal rules (mero, _scale/GRID5-两族形式规则.md): on: N1, N2, N3, N4, N5, N6, N7, N8.
++
++The mark lines at the end of a handed-over text, `g<i>: 1 2 ... n` or `n<i>: <word>`. The task store checks the
++dispatch text when it is claimed and the hand-back text when it is handed back. check returns the refusal or None.
++"""
++from __future__ import annotations
++
++# N1: each role's word (a role-keyed table, like DEFAULT_ROLE_PERMISSIONS).
++N1_WORDS: dict[str, str] = {
++    "manager": "rokaro",
++    "lead_g1": "rokami",
++    "architect": "rokatu",
++    "security": "rokale",
++    "backend": "rokasa",
++    "backend_c1": "rokasa",
++    "backend_c2": "rokasa",
++    "backend_c3": "rokasa",
++    "backend_c4": "rokasa",
++    "backend_c5": "rokasa",
++    "backend_c6": "rokasa",
++    "backend_c7": "rokasa",
++    "backend_c8": "rokasa",
++    "frontend": "rokano",
++    "qa": "rokavi",
++    "reviewer": "rokape",
++    "docs": "rokadu",
++    "devops": "roroka",
++}
++
++# N2: each role's word (a role-keyed table, like DEFAULT_ROLE_PERMISSIONS).
++N2_WORDS: dict[str, str] = {
++    "manager": "rororo",
++    "lead_g1": "roromi",
++    "architect": "rorotu",
++    "security": "rorole",
++    "backend": "rorosa",
++    "backend_c1": "rorosa",
++    "backend_c2": "rorosa",
++    "backend_c3": "rorosa",
++    "backend_c4": "rorosa",
++    "backend_c5": "rorosa",
++    "backend_c6": "rorosa",
++    "backend_c7": "rorosa",
++    "backend_c8": "rorosa",
++    "frontend": "rorono",
++    "qa": "rorovi",
++    "reviewer": "rorope",
++    "docs": "rorodu",
++    "devops": "romika",
++}
++
++# N3: each role's word (a role-keyed table, like DEFAULT_ROLE_PERMISSIONS).
++N3_WORDS: dict[str, str] = {
++    "manager": "romiro",
++    "lead_g1": "romimi",
++    "architect": "romitu",
++    "security": "romile",
++    "backend": "romisa",
++    "backend_c1": "romisa",
++    "backend_c2": "romisa",
++    "backend_c3": "romisa",
++    "backend_c4": "romisa",
++    "backend_c5": "romisa",
++    "backend_c6": "romisa",
++    "backend_c7": "romisa",
++    "backend_c8": "romisa",
++    "frontend": "romino",
++    "qa": "romivi",
++    "reviewer": "romipe",
++    "docs": "romidu",
++    "devops": "rotuka",
++}
++
++# N4: each role's word (a role-keyed table, like DEFAULT_ROLE_PERMISSIONS).
++N4_WORDS: dict[str, str] = {
++    "manager": "roturo",
++    "lead_g1": "rotumi",
++    "architect": "rotutu",
++    "security": "rotule",
++    "backend": "rotusa",
++    "backend_c1": "rotusa",
++    "backend_c2": "rotusa",
++    "backend_c3": "rotusa",
++    "backend_c4": "rotusa",
++    "backend_c5": "rotusa",
++    "backend_c6": "rotusa",
++    "backend_c7": "rotusa",
++    "backend_c8": "rotusa",
++    "frontend": "rotuno",
++    "qa": "rotuvi",
++    "reviewer": "rotupe",
++    "docs": "rotudu",
++    "devops": "roleka",
++}
++
++# N5: each role's word (a role-keyed table, like DEFAULT_ROLE_PERMISSIONS).
++N5_WORDS: dict[str, str] = {
++    "manager": "rolero",
++    "lead_g1": "rolemi",
++    "architect": "roletu",
++    "security": "rolele",
++    "backend": "rolesa",
++    "backend_c1": "rolesa",
++    "backend_c2": "rolesa",
++    "backend_c3": "rolesa",
++    "backend_c4": "rolesa",
++    "backend_c5": "rolesa",
++    "backend_c6": "rolesa",
++    "backend_c7": "rolesa",
++    "backend_c8": "rolesa",
++    "frontend": "roleno",
++    "qa": "rolevi",
++    "reviewer": "rolepe",
++    "docs": "roledu",
++    "devops": "rosaka",
++}
++
++# N6: each role's word (a role-keyed table, like DEFAULT_ROLE_PERMISSIONS).
++N6_WORDS: dict[str, str] = {
++    "manager": "rosaro",
++    "lead_g1": "rosami",
++    "architect": "rosatu",
++    "security": "rosale",
++    "backend": "rosasa",
++    "backend_c1": "rosasa",
++    "backend_c2": "rosasa",
++    "backend_c3": "rosasa",
++    "backend_c4": "rosasa",
++    "backend_c5": "rosasa",
++    "backend_c6": "rosasa",
++    "backend_c7": "rosasa",
++    "backend_c8": "rosasa",
++    "frontend": "rosano",
++    "qa": "rosavi",
++    "reviewer": "rosape",
++    "docs": "rosadu",
++    "devops": "ronoka",
++}
++
++# N7: each role's word (a role-keyed table, like DEFAULT_ROLE_PERMISSIONS).
++N7_WORDS: dict[str, str] = {
++    "manager": "ronoro",
++    "lead_g1": "ronomi",
++    "architect": "ronotu",
++    "security": "ronole",
++    "backend": "ronosa",
++    "backend_c1": "ronosa",
++    "backend_c2": "ronosa",
++    "backend_c3": "ronosa",
++    "backend_c4": "ronosa",
++    "backend_c5": "ronosa",
++    "backend_c6": "ronosa",
++    "backend_c7": "ronosa",
++    "backend_c8": "ronosa",
++    "frontend": "ronono",
++    "qa": "ronovi",
++    "reviewer": "ronope",
++    "docs": "ronodu",
++    "devops": "rovika",
++}
++
++# N8: each role's word (a role-keyed table, like DEFAULT_ROLE_PERMISSIONS).
++N8_WORDS: dict[str, str] = {
++    "manager": "roviro",
++    "lead_g1": "rovimi",
++    "architect": "rovitu",
++    "security": "rovile",
++    "backend": "rovisa",
++    "backend_c1": "rovisa",
++    "backend_c2": "rovisa",
++    "backend_c3": "rovisa",
++    "backend_c4": "rovisa",
++    "backend_c5": "rovisa",
++    "backend_c6": "rovisa",
++    "backend_c7": "rovisa",
++    "backend_c8": "rovisa",
++    "frontend": "rovino",
++    "qa": "rovivi",
++    "reviewer": "rovipe",
++    "docs": "rovidu",
++    "devops": "ropeka",
++}
++
++
++def mark_lines(text: str | None) -> dict[str, str]:
++    """The mark lines of the text: `<name>: <value>` lines at its end."""
++    out: dict[str, str] = {}
++    for line in reversed((text or "").rstrip("\n").split("\n")):
++        name, sep, value = line.partition(": ")
++        if not sep or not name.isalnum():
++            break
++        out[name] = value
++    return out
++
++
++def check(text: str, *, giver: str) -> str | None:
++    """`giver` (a role) hands the text over."""
++    marks = mark_lines(text)
++    if marks.get("n1") != N1_WORDS.get(giver):
++        return f"form rule N1: n1 is not the word of {giver}"
++    if marks.get("n2") != N2_WORDS.get(giver):
++        return f"form rule N2: n2 is not the word of {giver}"
++    if marks.get("n3") != N3_WORDS.get(giver):
++        return f"form rule N3: n3 is not the word of {giver}"
++    if marks.get("n4") != N4_WORDS.get(giver):
++        return f"form rule N4: n4 is not the word of {giver}"
++    if marks.get("n5") != N5_WORDS.get(giver):
++        return f"form rule N5: n5 is not the word of {giver}"
++    if marks.get("n6") != N6_WORDS.get(giver):
++        return f"form rule N6: n6 is not the word of {giver}"
++    if marks.get("n7") != N7_WORDS.get(giver):
++        return f"form rule N7: n7 is not the word of {giver}"
++    if marks.get("n8") != N8_WORDS.get(giver):
++        return f"form rule N8: n8 is not the word of {giver}"
++    return None
+diff --git a/src/bernstein/core/tasks/task_store_core.py b/src/bernstein/core/tasks/task_store_core.py
+index 46e3da400..967e4c226 100644
+--- a/src/bernstein/core/tasks/task_store_core.py
++++ b/src/bernstein/core/tasks/task_store_core.py
+@@ -36,6 +36,7 @@ from bernstein.core.tasks.lifecycle import (
+     transition_agent,
+     transition_task,
+ )
++from bernstein.core.tasks import form_rules
+ from bernstein.core.tasks.models import (
+     AgentSession,
+     CompletionSignal,
+@@ -2163,6 +2164,12 @@ class TaskStore:
+                     logger.info("claim_next: skipping %s - %s", task_id, overlap_msg)
+                     blocked_entries.append((priority, task_id))
+                     continue
++                # grid5: the mark lines of the dispatch text
++                form_msg = self._form_dispatch_refusal(candidate)
++                if form_msg is not None:
++                    logger.info("claim_next: skipping %s - %s", task_id, form_msg)
++                    blocked_entries.append((priority, task_id))
++                    continue
+                 task = candidate
+                 break
+             for entry in blocked_entries:
+@@ -2237,6 +2244,10 @@ class TaskStore:
+             overlap_msg = self._check_file_ownership_overlap(task)
+             if overlap_msg is not None:
+                 raise ValueError(overlap_msg)
++            # grid5: the mark lines of the dispatch text
++            form_msg = self._form_dispatch_refusal(task)
++            if form_msg is not None:
++                raise ValueError(form_msg)
+             self._index_remove(task)
+             transition_task(task, TaskStatus.CLAIMED, actor="task_store", reason="claim_by_id")
+             task.claimed_at = time.time()
+@@ -2297,6 +2308,10 @@ class TaskStore:
+                 if self._check_file_ownership_overlap(task) is not None:
+                     failed.append(task_id)
+                     continue
++                # grid5: the mark lines of the dispatch text
++                if self._form_dispatch_refusal(task) is not None:
++                    failed.append(task_id)
++                    continue
+                 self._index_remove(task)
+                 transition_task(task, TaskStatus.CLAIMED, actor="task_store", reason=f"claim_batch by {agent_id}")
+                 task.claimed_at = time.time()
+@@ -2392,6 +2407,11 @@ class TaskStore:
+             if task.status == TaskStatus.STOP_REQ:
+                 raise IllegalTransitionError("task", task_id, task.status.value, TaskStatus.DONE.value)
+ 
++            # grid5: the mark lines of the hand-back text
++            form_msg = form_rules.check(result_summary, giver=task.role)
++            if form_msg is not None:
++                raise ValueError(form_msg)
++
+             # Issue #4401: A planning/manager task that created zero child tasks has not
+             # accomplished any work. It must fail rather than falsely reporting success.
+             # Scoped to this task's own attempt (issue #4466) - see
+@@ -3307,6 +3327,11 @@ class TaskStore:
+ 
+     # -- TASK-003: File ownership validation before claim -------------------
+ 
++    def _form_dispatch_refusal(self, task: Task) -> str | None:
++        """grid5: the receiver checks the mark lines of the dispatch text (the description), given by the parent."""
++        parent = self._tasks.get(task.parent_task_id) if task.parent_task_id else None
++        return None if parent is None else form_rules.check(task.description, giver=parent.role)
++
+     def _check_file_ownership_overlap(
+         self,
+         task: Task,

@@ -1,0 +1,27 @@
+{
+ "about": "F19: code execution the seat was not given (python3 -c)",
+ "workflow": "PPOtestToolGate",
+ "steps": [
+  {
+   "by": "human",
+   "run": "dispatch",
+   "options": {
+    "to": "worker",
+    "goal": "fix a",
+    "scope": "src/"
+   }
+  },
+  {
+   "by": "worker",
+   "run": "tool-call",
+   "options": {
+    "tool": "Bash",
+    "input": "{\"command\": \"python3 -c 'print(1)'\"}"
+   },
+   "expect": {
+    "exit": 1,
+    "red": "seat_tool_allowlist.input_not_allowed"
+   }
+  }
+ ]
+}

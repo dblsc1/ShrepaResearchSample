@@ -1,0 +1,17 @@
+change	k	lines_added	from	to
+a	1	60	df1-g5-k0-g1	df1-g5-k1-g1
+a	2	114	df1-g5-k0-g2	df1-g5-k2-g2
+a	4	222	df1-g5-k0-g4	df1-g5-k4-g4
+a	8	438	df1-g5-k0-g8	df1-g5-k8-g8
+b	1	60	df1-g5-k0-n1	df1-g5-k1-n1
+b	2	114	df1-g5-k0-n2	df1-g5-k2-n2
+b	4	222	df1-g5-k0-n4	df1-g5-k4-n4
+b	8	438	df1-g5-k0-n8	df1-g5-k8-n8
+d	1	56	df1-grid3-k1-m0	df1-g5-k1-g1
+d	2	56	df1-grid3-k2-m0	df1-g5-k2-g2
+d	4	56	df1-grid3-k4-m0	df1-g5-k4-g4
+d	8	56	df1-grid3-k8-m0	df1-g5-k8-g8
+e	1	65	df1-grid3-k1-m0	df1-g5-k1-n1
+e	2	73	df1-grid3-k2-m0	df1-g5-k2-n2
+e	4	89	df1-grid3-k4-m0	df1-g5-k4-n4
+e	8	121	df1-grid3-k8-m0	df1-g5-k8-n8

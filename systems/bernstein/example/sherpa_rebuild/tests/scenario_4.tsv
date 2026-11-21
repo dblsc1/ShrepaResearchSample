@@ -1,0 +1,4 @@
+case	given	who	does	on	args	expect	rule	source
+S4a	@mgr ; T1 = backend by manager ; finish T1	manager	dispatch	backend	reviews T1	block	review_rules.author_is_reviewer	test_scenario_4::test_writer_cannot_claim_review_over_http; test_rule_holds_on_claim_by_id_and_claim_next (one entry point in Sherpa)
+S4b	@mgr ; T1 = backend by manager ; finish T1	manager	dispatch	reviewer	reviews T1	pass		test_scenario_4::test_other_agent_can_claim_review_over_http
+S4c	@mgr ; T1 = backend by manager ; finish T1	manager	dispatch	backend	after T1	pass		test_scenario_4::test_non_review_followup_by_same_agent_still_allowed

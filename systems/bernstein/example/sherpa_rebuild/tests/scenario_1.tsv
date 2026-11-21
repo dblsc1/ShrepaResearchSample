@@ -1,0 +1,8 @@
+case	given	who	does	on	args	expect	rule	source
+S1a	@mgr	manager	dispatch	security_reviewer		pass		test_scenario_1::test_task_server_accepts_new_role
+S1b	@mgr	manager	dispatch	ghost_role		block	classic_lifecycle.not_your_lower	test_scenario_1::test_task_server_still_rejects_undefined_role
+S1c	@mgr ; T1 = backend by manager ; T2 = security_reviewer after T1 by manager ; brief T2	security_reviewer	takeoff	T2		block	waits_for.not_ended	test_scenario_1::test_dependency_rule_applies_to_new_role (409 before the dependency is done)
+S1d	@mgr ; T1 = backend by manager ; finish T1 ; T2 = security_reviewer after T1 by manager ; brief T2	security_reviewer	takeoff	T2		pass		test_scenario_1::test_dependency_rule_applies_to_new_role (claim after it is done)
+S1e	@mgr ; T1 = security_reviewer scope tests/,src/ by manager ; start T1	security_reviewer	commit	T1	tests/unit/test_auth.py	pass		test_scenario_1::test_write_scope_rule_applies_to_new_role (tests/ allowed)
+S1f	@mgr ; T1 = security_reviewer scope tests/,src/ by manager ; start T1	security_reviewer	commit	T1	src/auth.py	block	seat_write_limit.outside_seat_paths	test_scenario_1::test_write_scope_rule_applies_to_new_role (src/ refused)
+S1g	@mgr ; T1 = backend by manager ; T2 = security_reviewer by manager ; brief T1	security_reviewer	takeoff	T1		block	builtin.actor	test_scenario_1::test_token_rules_apply_to_new_role (task-scoped token)

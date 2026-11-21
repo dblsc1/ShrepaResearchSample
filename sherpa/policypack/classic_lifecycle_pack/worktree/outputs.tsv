@@ -1,0 +1,4 @@
+event	output	params	locked
+dispatch.passed	prepare_worktree	-	no
+takeoff.passed	prepare_worktree	-	no
+receipt.passed	remove_worktree	-	no

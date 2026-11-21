@@ -1,0 +1,7 @@
+{"about": "the cto hands its task back after the task it dispatched is closed", "workflow": "PPOtest2CtoTeam",
+ "steps": [
+  {"by": "human", "run": "dispatch", "options": {"to": "cto", "goal": "goal", "scope": "src/"}},
+  {"do": "start", "task": "$1"},
+  {"by": "cto", "run": "dispatch", "options": {"to": "worker", "goal": "part", "scope": "src/"}},
+  {"do": "finish", "task": "$2"},
+  {"do": "land", "task": "$1", "expect": {"exit": 0}}]}

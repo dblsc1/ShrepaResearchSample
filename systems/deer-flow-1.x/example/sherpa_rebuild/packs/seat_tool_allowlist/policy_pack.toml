@@ -1,0 +1,14 @@
+# seat_tool_allowlist: every tool call an agent makes in a task's worktree is first judged by sherpa
+# (`sherpa tool-call`, typed by a Claude Code PreToolUse hook this pack installs in the worktree).
+# The check allows per seat only the tools named in the workflow's params:
+#   [policy.seat_tool_allowlist] params = "worker=Read(src/**),Grep,Glob,Bash(sherpa *)"
+# Seats not named are not limited by this check (the call is still recorded and counted).
+name      = "seat_tool_allowlist"
+version   = "1"
+requires  = ["base", "classic_lifecycle", "worktree"]
+after     = ["worktree"]
+conflicts = []
+group     = "classic_lifecycle_pack"
+writes    = ["tool_ledger/", "tool_inputs/"]
+provides  = ["tool_ledger", "tool-call --tool", "tool-call --input", "tool-call --session", "tool-call --transcript", "tool-call --transcript-bytes", "tool-call --agent", "tool-call --input-file", "tool_input"]
+reads     = ["task_card"]

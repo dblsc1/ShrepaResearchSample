@@ -1,0 +1,4 @@
+name	kind	impl	locked
+reopen_count	sampler	reopen_count.py	no
+reopens_under_limit	check	reopens_under_limit.py	no
+record_reopen	output	record_reopen.py	no

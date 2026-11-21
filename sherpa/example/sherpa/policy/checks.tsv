@@ -1,0 +1,14 @@
+# Built by `ppo build` from sherpa/policypack/. Do not edit: change a pack, then build.
+command	check	roles	stage	action	params	locked	pack
+takeoff	git_rules	*	general	block	-	no	git
+landing	git_rules	*	general	block	-	no	git
+receipt	git_rules	*	general	block	-	no	git
+dispatch	task_card_complete	*	general	block	-	no	task_card_check
+dispatch	waited_tasks_exist	*	general	block	-	no	waits_for
+takeoff	waited_tasks_ended	*	general	block	ended=closed,cancelled	no	waits_for
+debrief	dispatched_tasks_ended	*	general	block	ended=closed,cancelled	no	parallel_wait_all
+landing	write_scope	*	general	block	-	no	write_scope
+debrief	write_scope	*	general	block	-	no	write_scope
+*	one_active_writer_per_branch	*	builtin	block	active=onAir,landed	yes	write_scope
+dispatch	author_is_not_reviewer	*	general	block	-	yes	review_rules
+dispatch	lower_seat_pairing	*	general	block	pairs=human>CTO,cto>WORKER,cto>REVIEWER	yes	PPOtest2CtoTeam

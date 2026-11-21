@@ -1,0 +1,8 @@
+case	given	who	does	on	args	expect	rule	source
+S6a	@mgr	manager	dispatch	team_lead		pass		test_scenario_6::test_three_level_chain_accepted (manager -> team_lead)
+S6b	@mgr ; L = team_lead scope src/,tests/,docs/,plans/,.github/,package.json by manager ; start L	team_lead	dispatch	backend		pass		test_scenario_6::test_three_level_chain_accepted (team_lead -> backend)
+S6c	@mgr ; L = team_lead scope src/,tests/,docs/,plans/,.github/,package.json by manager ; start L ; commit L empty	team_lead	debrief	L		block	must_decompose.nothing_dispatched	test_scenario_6::test_zero_yield_rule_applies_to_team_lead
+S6d	@mgr ; L = team_lead scope src/,tests/,docs/,plans/,.github/,package.json by manager ; start L ; T1 = backend by team_lead ; commit L empty	team_lead	debrief	L		pass		test_scenario_6::test_team_lead_with_children_completes (and does not wait for them)
+S6e	@mgr ; L = team_lead scope src/,tests/,docs/,plans/,.github/,package.json by manager ; start L	team_lead	commit	L	plans/subsystem.md	pass		test_scenario_6::test_planner_path_scope_applies_to_team_lead (plans/ allowed)
+S6f	@mgr ; L = team_lead scope src/,tests/,docs/,plans/,.github/,package.json by manager ; start L	team_lead	commit	L	src/bernstein/core/x.py	block	seat_write_limit.outside_seat_paths	test_scenario_6::test_planner_path_scope_applies_to_team_lead (src/ refused)
+S6g	@mgr ; L = team_lead scope src/,tests/,docs/,plans/,.github/,package.json by manager ; start L ; T1 = backend by team_lead ; brief T1	team_lead	takeoff	T1		block	builtin.actor	test_scenario_6::test_team_lead_token_is_task_scoped_and_may_create_tasks (scoped side)

@@ -1,0 +1,904 @@
+diff --git a/cli/display.py b/cli/display.py
+index 0f9bd09..2a67592 100644
+--- a/cli/display.py
++++ b/cli/display.py
+@@ -28,7 +28,7 @@ class MessageBuffer:
+     FIXED_AGENTS = {
+         "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
+         "Trading Team": ["Trader"],
+-        "Risk Management": ["Aggressive Analyst", "Neutral Analyst", "Conservative Analyst"],
++        "Risk Management": ["Aggressive Analyst", "Neutral Analyst", "Conservative Analyst", "Neutral Analyst 2", "Neutral Analyst 3", "Neutral Analyst 4", "Neutral Analyst 5"],
+         "Portfolio Management": ["Portfolio Manager"],
+     }
+ 
+@@ -217,7 +217,7 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
+         ],
+         "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
+         "Trading Team": ["Trader"],
+-        "Risk Management": ["Aggressive Analyst", "Neutral Analyst", "Conservative Analyst"],
++        "Risk Management": ["Aggressive Analyst", "Neutral Analyst", "Conservative Analyst", "Neutral Analyst 2", "Neutral Analyst 3", "Neutral Analyst 4", "Neutral Analyst 5"],
+         "Portfolio Management": ["Portfolio Manager"],
+     }
+ 
+@@ -426,6 +426,14 @@ def display_complete_report(final_state):
+             risk_reports.append(("Conservative Analyst", risk["conservative_history"]))
+         if risk.get("neutral_history"):
+             risk_reports.append(("Neutral Analyst", risk["neutral_history"]))
++        if risk.get("neutral_2_history"):
++            risk_reports.append(("Neutral Analyst 2", risk["neutral_2_history"]))
++        if risk.get("neutral_3_history"):
++            risk_reports.append(("Neutral Analyst 3", risk["neutral_3_history"]))
++        if risk.get("neutral_4_history"):
++            risk_reports.append(("Neutral Analyst 4", risk["neutral_4_history"]))
++        if risk.get("neutral_5_history"):
++            risk_reports.append(("Neutral Analyst 5", risk["neutral_5_history"]))
+         if risk_reports:
+             console.print(Panel("[bold]IV. Risk Management Team Decision[/bold]", border_style="red"))
+             for title, content in risk_reports:
+diff --git a/cli/run.py b/cli/run.py
+index dc934dd..61cdcdb 100644
+--- a/cli/run.py
++++ b/cli/run.py
+@@ -307,6 +307,10 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
+                     agg_hist = risk_state.get("aggressive_history", "").strip()
+                     con_hist = risk_state.get("conservative_history", "").strip()
+                     neu_hist = risk_state.get("neutral_history", "").strip()
++                    neutral_2_hist = risk_state.get("neutral_2_history", "").strip()
++                    neutral_3_hist = risk_state.get("neutral_3_history", "").strip()
++                    neutral_4_hist = risk_state.get("neutral_4_history", "").strip()
++                    neutral_5_hist = risk_state.get("neutral_5_history", "").strip()
+                     judge = (chunk.get("final_trade_decision") or "").strip()
+ 
+                     if agg_hist:
+@@ -327,6 +331,30 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
+                         message_buffer.update_report_section(
+                             "final_trade_decision", f"### Neutral Analyst Analysis\n{neu_hist}"
+                         )
++                    if neutral_2_hist:
++                        if message_buffer.agent_status.get("Neutral Analyst 2") != "completed":
++                            message_buffer.update_agent_status("Neutral Analyst 2", "in_progress")
++                        message_buffer.update_report_section(
++                            "final_trade_decision", f"### Neutral Analyst 2 Analysis\n{neutral_2_hist}"
++                        )
++                    if neutral_3_hist:
++                        if message_buffer.agent_status.get("Neutral Analyst 3") != "completed":
++                            message_buffer.update_agent_status("Neutral Analyst 3", "in_progress")
++                        message_buffer.update_report_section(
++                            "final_trade_decision", f"### Neutral Analyst 3 Analysis\n{neutral_3_hist}"
++                        )
++                    if neutral_4_hist:
++                        if message_buffer.agent_status.get("Neutral Analyst 4") != "completed":
++                            message_buffer.update_agent_status("Neutral Analyst 4", "in_progress")
++                        message_buffer.update_report_section(
++                            "final_trade_decision", f"### Neutral Analyst 4 Analysis\n{neutral_4_hist}"
++                        )
++                    if neutral_5_hist:
++                        if message_buffer.agent_status.get("Neutral Analyst 5") != "completed":
++                            message_buffer.update_agent_status("Neutral Analyst 5", "in_progress")
++                        message_buffer.update_report_section(
++                            "final_trade_decision", f"### Neutral Analyst 5 Analysis\n{neutral_5_hist}"
++                        )
+                     if judge and message_buffer.agent_status.get("Portfolio Manager") != "completed":
+                         message_buffer.update_agent_status("Portfolio Manager", "in_progress")
+                         message_buffer.update_report_section(
+@@ -335,6 +363,10 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
+                         message_buffer.update_agent_status("Aggressive Analyst", "completed")
+                         message_buffer.update_agent_status("Conservative Analyst", "completed")
+                         message_buffer.update_agent_status("Neutral Analyst", "completed")
++                        message_buffer.update_agent_status("Neutral Analyst 2", "completed")
++                        message_buffer.update_agent_status("Neutral Analyst 3", "completed")
++                        message_buffer.update_agent_status("Neutral Analyst 4", "completed")
++                        message_buffer.update_agent_status("Neutral Analyst 5", "completed")
+                         message_buffer.update_agent_status("Portfolio Manager", "completed")
+ 
+                 update_display(layout, stats_handler=stats_handler, start_time=start_time)
+diff --git a/tradingagents/agents/__init__.py b/tradingagents/agents/__init__.py
+index 169b709..2f8ffae 100644
+--- a/tradingagents/agents/__init__.py
++++ b/tradingagents/agents/__init__.py
+@@ -9,6 +9,10 @@ from .researchers.bull_researcher import create_bull_researcher
+ from .risk_mgmt.aggressive_debator import create_aggressive_debator
+ from .risk_mgmt.conservative_debator import create_conservative_debator
+ from .risk_mgmt.neutral_debator import create_neutral_debator
++from .risk_mgmt.neutral_2_debator import create_neutral_2_debator
++from .risk_mgmt.neutral_3_debator import create_neutral_3_debator
++from .risk_mgmt.neutral_4_debator import create_neutral_4_debator
++from .risk_mgmt.neutral_5_debator import create_neutral_5_debator
+ from .state import AgentState, InvestDebateState, RiskDebateState
+ from .trader.trader import create_trader
+ 
+@@ -22,6 +26,10 @@ __all__ = [
+     "create_fundamentals_analyst",
+     "create_market_analyst",
+     "create_neutral_debator",
++    "create_neutral_2_debator",
++    "create_neutral_3_debator",
++    "create_neutral_4_debator",
++    "create_neutral_5_debator",
+     "create_news_analyst",
+     "create_aggressive_debator",
+     "create_portfolio_manager",
+diff --git a/tradingagents/agents/managers/portfolio_manager.py b/tradingagents/agents/managers/portfolio_manager.py
+index 0537b5e..535264b 100644
+--- a/tradingagents/agents/managers/portfolio_manager.py
++++ b/tradingagents/agents/managers/portfolio_manager.py
+@@ -90,10 +90,18 @@ Write these sections, in this order, starting with the rating on its own line:
+             "aggressive_history": risk_debate_state["aggressive_history"],
+             "conservative_history": risk_debate_state["conservative_history"],
+             "neutral_history": risk_debate_state["neutral_history"],
++            "neutral_2_history": risk_debate_state["neutral_2_history"],
++            "neutral_3_history": risk_debate_state["neutral_3_history"],
++            "neutral_4_history": risk_debate_state["neutral_4_history"],
++            "neutral_5_history": risk_debate_state["neutral_5_history"],
+             "latest_speaker": "Judge",
+             "current_aggressive_response": risk_debate_state["current_aggressive_response"],
+             "current_conservative_response": risk_debate_state["current_conservative_response"],
+             "current_neutral_response": risk_debate_state["current_neutral_response"],
++            "current_neutral_2_response": risk_debate_state["current_neutral_2_response"],
++            "current_neutral_3_response": risk_debate_state["current_neutral_3_response"],
++            "current_neutral_4_response": risk_debate_state["current_neutral_4_response"],
++            "current_neutral_5_response": risk_debate_state["current_neutral_5_response"],
+             "count": risk_debate_state["count"],
+         }
+ 
+diff --git a/tradingagents/agents/risk_mgmt/aggressive_debator.py b/tradingagents/agents/risk_mgmt/aggressive_debator.py
+index 4d977dc..fc4025d 100644
+--- a/tradingagents/agents/risk_mgmt/aggressive_debator.py
++++ b/tradingagents/agents/risk_mgmt/aggressive_debator.py
+@@ -19,6 +19,18 @@ def create_aggressive_debator(llm):
+         current_neutral_response = opponent_argument_or_opening(
+             risk_debate_state.get("current_neutral_response", ""), "neutral analyst"
+         )
++        current_neutral_2_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_2_response", ""), "neutral 2 analyst"
++        )
++        current_neutral_3_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_3_response", ""), "neutral 3 analyst"
++        )
++        current_neutral_4_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_4_response", ""), "neutral 4 analyst"
++        )
++        current_neutral_5_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_5_response", ""), "neutral 5 analyst"
++        )
+ 
+         market_research_report = report_or_absent(state["market_report"], "market")
+         sentiment_report = report_or_absent(state["sentiment_report"], "sentiment")
+@@ -41,7 +53,7 @@ Market Research Report: {market_research_report}
+ Social Media Sentiment Report: {sentiment_report}
+ Latest World Affairs Report: {news_report}
+ Company Fundamentals Report: {fundamentals_report}
+-Here is the current conversation history: {history} Here are the last arguments from the conservative analyst: {current_conservative_response} Here are the last arguments from the neutral analyst: {current_neutral_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
++Here is the current conversation history: {history} Here are the last arguments from the conservative analyst: {current_conservative_response} Here are the last arguments from the neutral analyst: {current_neutral_response} Here are the last arguments from the neutral 2 analyst: {current_neutral_2_response} Here are the last arguments from the neutral 3 analyst: {current_neutral_3_response} Here are the last arguments from the neutral 4 analyst: {current_neutral_4_response} Here are the last arguments from the neutral 5 analyst: {current_neutral_5_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
+ 
+ Engage actively by addressing any specific concerns raised, refuting the weaknesses in their logic, and asserting the benefits of risk-taking to outpace market norms. Maintain a focus on debating and persuading, not just presenting data. Challenge each counterpoint to underscore why a high-risk approach is optimal. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
+ 
+@@ -54,12 +66,20 @@ Engage actively by addressing any specific concerns raised, refuting the weaknes
+             "aggressive_history": aggressive_history + "\n" + argument,
+             "conservative_history": risk_debate_state.get("conservative_history", ""),
+             "neutral_history": risk_debate_state.get("neutral_history", ""),
++            "neutral_2_history": risk_debate_state.get("neutral_2_history", ""),
++            "neutral_3_history": risk_debate_state.get("neutral_3_history", ""),
++            "neutral_4_history": risk_debate_state.get("neutral_4_history", ""),
++            "neutral_5_history": risk_debate_state.get("neutral_5_history", ""),
+             "latest_speaker": "Aggressive",
+             "current_aggressive_response": argument,
+             "current_conservative_response": risk_debate_state.get("current_conservative_response", ""),
+             "current_neutral_response": risk_debate_state.get(
+                 "current_neutral_response", ""
+             ),
++            "current_neutral_2_response": risk_debate_state.get("current_neutral_2_response", ""),
++            "current_neutral_3_response": risk_debate_state.get("current_neutral_3_response", ""),
++            "current_neutral_4_response": risk_debate_state.get("current_neutral_4_response", ""),
++            "current_neutral_5_response": risk_debate_state.get("current_neutral_5_response", ""),
+             "count": risk_debate_state["count"] + 1,
+         }
+ 
+diff --git a/tradingagents/agents/risk_mgmt/conservative_debator.py b/tradingagents/agents/risk_mgmt/conservative_debator.py
+index e8207a8..25d5866 100644
+--- a/tradingagents/agents/risk_mgmt/conservative_debator.py
++++ b/tradingagents/agents/risk_mgmt/conservative_debator.py
+@@ -19,6 +19,18 @@ def create_conservative_debator(llm):
+         current_neutral_response = opponent_argument_or_opening(
+             risk_debate_state.get("current_neutral_response", ""), "neutral analyst"
+         )
++        current_neutral_2_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_2_response", ""), "neutral 2 analyst"
++        )
++        current_neutral_3_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_3_response", ""), "neutral 3 analyst"
++        )
++        current_neutral_4_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_4_response", ""), "neutral 4 analyst"
++        )
++        current_neutral_5_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_5_response", ""), "neutral 5 analyst"
++        )
+ 
+         market_research_report = report_or_absent(state["market_report"], "market")
+         sentiment_report = report_or_absent(state["sentiment_report"], "sentiment")
+@@ -41,7 +53,7 @@ Market Research Report: {market_research_report}
+ Social Media Sentiment Report: {sentiment_report}
+ Latest World Affairs Report: {news_report}
+ Company Fundamentals Report: {fundamentals_report}
+-Here is the current conversation history: {history} Here is the last response from the aggressive analyst: {current_aggressive_response} Here is the last response from the neutral analyst: {current_neutral_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
++Here is the current conversation history: {history} Here is the last response from the aggressive analyst: {current_aggressive_response} Here is the last response from the neutral analyst: {current_neutral_response} Here is the last response from the neutral 2 analyst: {current_neutral_2_response} Here is the last response from the neutral 3 analyst: {current_neutral_3_response} Here is the last response from the neutral 4 analyst: {current_neutral_4_response} Here is the last response from the neutral 5 analyst: {current_neutral_5_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
+ 
+ Engage by questioning their optimism and emphasizing the potential downsides they may have overlooked. Address each of their counterpoints to showcase why a conservative stance is ultimately the safest path for the firm's assets. Focus on debating and critiquing their arguments to demonstrate the strength of a low-risk strategy over their approaches. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
+ 
+@@ -54,6 +66,10 @@ Engage by questioning their optimism and emphasizing the potential downsides the
+             "aggressive_history": risk_debate_state.get("aggressive_history", ""),
+             "conservative_history": conservative_history + "\n" + argument,
+             "neutral_history": risk_debate_state.get("neutral_history", ""),
++            "neutral_2_history": risk_debate_state.get("neutral_2_history", ""),
++            "neutral_3_history": risk_debate_state.get("neutral_3_history", ""),
++            "neutral_4_history": risk_debate_state.get("neutral_4_history", ""),
++            "neutral_5_history": risk_debate_state.get("neutral_5_history", ""),
+             "latest_speaker": "Conservative",
+             "current_aggressive_response": risk_debate_state.get(
+                 "current_aggressive_response", ""
+@@ -62,6 +78,10 @@ Engage by questioning their optimism and emphasizing the potential downsides the
+             "current_neutral_response": risk_debate_state.get(
+                 "current_neutral_response", ""
+             ),
++            "current_neutral_2_response": risk_debate_state.get("current_neutral_2_response", ""),
++            "current_neutral_3_response": risk_debate_state.get("current_neutral_3_response", ""),
++            "current_neutral_4_response": risk_debate_state.get("current_neutral_4_response", ""),
++            "current_neutral_5_response": risk_debate_state.get("current_neutral_5_response", ""),
+             "count": risk_debate_state["count"] + 1,
+         }
+ 
+diff --git a/tradingagents/agents/risk_mgmt/neutral_2_debator.py b/tradingagents/agents/risk_mgmt/neutral_2_debator.py
+new file mode 100644
+index 0000000..4b65aab
+--- /dev/null
++++ b/tradingagents/agents/risk_mgmt/neutral_2_debator.py
+@@ -0,0 +1,88 @@
++from tradingagents.agents.context import (
++    get_instrument_context_from_state,
++    get_language_instruction,
++    get_portfolio_context_from_state,
++    opponent_argument_or_opening,
++    report_or_absent,
++)
++
++
++def create_neutral_2_debator(llm):
++    def neutral_2_node(state) -> dict:
++        risk_debate_state = state["risk_debate_state"]
++        history = risk_debate_state.get("history", "")
++        neutral_2_history = risk_debate_state.get("neutral_2_history", "")
++
++        current_aggressive_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_aggressive_response", ""), "aggressive analyst"
++        )
++        current_conservative_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_conservative_response", ""), "conservative analyst"
++        )
++        current_neutral_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_response", ""), "neutral analyst"
++        )
++        current_neutral_3_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_3_response", ""), "neutral 3 analyst"
++        )
++        current_neutral_4_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_4_response", ""), "neutral 4 analyst"
++        )
++        current_neutral_5_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_5_response", ""), "neutral 5 analyst"
++        )
++
++        market_research_report = report_or_absent(state["market_report"], "market")
++        sentiment_report = report_or_absent(state["sentiment_report"], "sentiment")
++        news_report = report_or_absent(state["news_report"], "news")
++        fundamentals_report = report_or_absent(state["fundamentals_report"], "fundamentals")
++        instrument_context = get_instrument_context_from_state(state)
++        portfolio_context = get_portfolio_context_from_state(state)
++
++        trader_decision = state["trader_investment_plan"]
++
++        prompt = f"""As the Neutral Risk Analyst, your role is to provide a balanced perspective, weighing both the potential benefits and risks of the trader's decision or plan. You prioritize a well-rounded approach, evaluating the upsides and downsides while factoring in broader market trends, potential economic shifts, and diversification strategies.Here is the trader's decision:
++
++{trader_decision}
++
++Your task is to challenge both the Aggressive and Conservative Analysts, pointing out where each perspective may be overly optimistic or overly cautious. Use insights from the following data sources to support a moderate, sustainable strategy to adjust the trader's decision:
++
++{instrument_context}
++{portfolio_context}
++Market Research Report: {market_research_report}
++Social Media Sentiment Report: {sentiment_report}
++Latest World Affairs Report: {news_report}
++Company Fundamentals Report: {fundamentals_report}
++Here is the current conversation history: {history} Here is the last response from the aggressive analyst: {current_aggressive_response} Here is the last response from the conservative analyst: {current_conservative_response} Here is the last response from the neutral analyst: {current_neutral_response} Here is the last response from the neutral 3 analyst: {current_neutral_3_response} Here is the last response from the neutral 4 analyst: {current_neutral_4_response} Here is the last response from the neutral 5 analyst: {current_neutral_5_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
++
++Engage actively by analyzing both sides critically, addressing weaknesses in the aggressive and conservative arguments to advocate for a more balanced approach. Challenge each of their points to illustrate why a moderate risk strategy might offer the best of both worlds, providing growth potential while safeguarding against extreme volatility. Focus on debating rather than simply presenting data, aiming to show that a balanced view can lead to the most reliable outcomes. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
++
++        response = llm.invoke(prompt)
++
++        argument = f"Neutral Analyst 2: {response.content}"
++
++        new_risk_debate_state = {
++            "history": history + "\n" + argument,
++            "aggressive_history": risk_debate_state.get("aggressive_history", ""),
++            "conservative_history": risk_debate_state.get("conservative_history", ""),
++            "neutral_2_history": neutral_2_history + "\n" + argument,
++            "neutral_history": risk_debate_state.get("neutral_history", ""),
++            "neutral_3_history": risk_debate_state.get("neutral_3_history", ""),
++            "neutral_4_history": risk_debate_state.get("neutral_4_history", ""),
++            "neutral_5_history": risk_debate_state.get("neutral_5_history", ""),
++            "latest_speaker": "Neutral 2",
++            "current_aggressive_response": risk_debate_state.get(
++                "current_aggressive_response", ""
++            ),
++            "current_conservative_response": risk_debate_state.get("current_conservative_response", ""),
++            "current_neutral_2_response": argument,
++            "current_neutral_response": risk_debate_state.get("current_neutral_response", ""),
++            "current_neutral_3_response": risk_debate_state.get("current_neutral_3_response", ""),
++            "current_neutral_4_response": risk_debate_state.get("current_neutral_4_response", ""),
++            "current_neutral_5_response": risk_debate_state.get("current_neutral_5_response", ""),
++            "count": risk_debate_state["count"] + 1,
++        }
++
++        return {"risk_debate_state": new_risk_debate_state}
++
++    return neutral_2_node
+diff --git a/tradingagents/agents/risk_mgmt/neutral_3_debator.py b/tradingagents/agents/risk_mgmt/neutral_3_debator.py
+new file mode 100644
+index 0000000..b3b165f
+--- /dev/null
++++ b/tradingagents/agents/risk_mgmt/neutral_3_debator.py
+@@ -0,0 +1,88 @@
++from tradingagents.agents.context import (
++    get_instrument_context_from_state,
++    get_language_instruction,
++    get_portfolio_context_from_state,
++    opponent_argument_or_opening,
++    report_or_absent,
++)
++
++
++def create_neutral_3_debator(llm):
++    def neutral_3_node(state) -> dict:
++        risk_debate_state = state["risk_debate_state"]
++        history = risk_debate_state.get("history", "")
++        neutral_3_history = risk_debate_state.get("neutral_3_history", "")
++
++        current_aggressive_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_aggressive_response", ""), "aggressive analyst"
++        )
++        current_conservative_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_conservative_response", ""), "conservative analyst"
++        )
++        current_neutral_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_response", ""), "neutral analyst"
++        )
++        current_neutral_2_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_2_response", ""), "neutral 2 analyst"
++        )
++        current_neutral_4_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_4_response", ""), "neutral 4 analyst"
++        )
++        current_neutral_5_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_5_response", ""), "neutral 5 analyst"
++        )
++
++        market_research_report = report_or_absent(state["market_report"], "market")
++        sentiment_report = report_or_absent(state["sentiment_report"], "sentiment")
++        news_report = report_or_absent(state["news_report"], "news")
++        fundamentals_report = report_or_absent(state["fundamentals_report"], "fundamentals")
++        instrument_context = get_instrument_context_from_state(state)
++        portfolio_context = get_portfolio_context_from_state(state)
++
++        trader_decision = state["trader_investment_plan"]
++
++        prompt = f"""As the Neutral Risk Analyst, your role is to provide a balanced perspective, weighing both the potential benefits and risks of the trader's decision or plan. You prioritize a well-rounded approach, evaluating the upsides and downsides while factoring in broader market trends, potential economic shifts, and diversification strategies.Here is the trader's decision:
++
++{trader_decision}
++
++Your task is to challenge both the Aggressive and Conservative Analysts, pointing out where each perspective may be overly optimistic or overly cautious. Use insights from the following data sources to support a moderate, sustainable strategy to adjust the trader's decision:
++
++{instrument_context}
++{portfolio_context}
++Market Research Report: {market_research_report}
++Social Media Sentiment Report: {sentiment_report}
++Latest World Affairs Report: {news_report}
++Company Fundamentals Report: {fundamentals_report}
++Here is the current conversation history: {history} Here is the last response from the aggressive analyst: {current_aggressive_response} Here is the last response from the conservative analyst: {current_conservative_response} Here is the last response from the neutral analyst: {current_neutral_response} Here is the last response from the neutral 2 analyst: {current_neutral_2_response} Here is the last response from the neutral 4 analyst: {current_neutral_4_response} Here is the last response from the neutral 5 analyst: {current_neutral_5_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
++
++Engage actively by analyzing both sides critically, addressing weaknesses in the aggressive and conservative arguments to advocate for a more balanced approach. Challenge each of their points to illustrate why a moderate risk strategy might offer the best of both worlds, providing growth potential while safeguarding against extreme volatility. Focus on debating rather than simply presenting data, aiming to show that a balanced view can lead to the most reliable outcomes. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
++
++        response = llm.invoke(prompt)
++
++        argument = f"Neutral Analyst 3: {response.content}"
++
++        new_risk_debate_state = {
++            "history": history + "\n" + argument,
++            "aggressive_history": risk_debate_state.get("aggressive_history", ""),
++            "conservative_history": risk_debate_state.get("conservative_history", ""),
++            "neutral_3_history": neutral_3_history + "\n" + argument,
++            "neutral_history": risk_debate_state.get("neutral_history", ""),
++            "neutral_2_history": risk_debate_state.get("neutral_2_history", ""),
++            "neutral_4_history": risk_debate_state.get("neutral_4_history", ""),
++            "neutral_5_history": risk_debate_state.get("neutral_5_history", ""),
++            "latest_speaker": "Neutral 3",
++            "current_aggressive_response": risk_debate_state.get(
++                "current_aggressive_response", ""
++            ),
++            "current_conservative_response": risk_debate_state.get("current_conservative_response", ""),
++            "current_neutral_3_response": argument,
++            "current_neutral_response": risk_debate_state.get("current_neutral_response", ""),
++            "current_neutral_2_response": risk_debate_state.get("current_neutral_2_response", ""),
++            "current_neutral_4_response": risk_debate_state.get("current_neutral_4_response", ""),
++            "current_neutral_5_response": risk_debate_state.get("current_neutral_5_response", ""),
++            "count": risk_debate_state["count"] + 1,
++        }
++
++        return {"risk_debate_state": new_risk_debate_state}
++
++    return neutral_3_node
+diff --git a/tradingagents/agents/risk_mgmt/neutral_4_debator.py b/tradingagents/agents/risk_mgmt/neutral_4_debator.py
+new file mode 100644
+index 0000000..9544063
+--- /dev/null
++++ b/tradingagents/agents/risk_mgmt/neutral_4_debator.py
+@@ -0,0 +1,88 @@
++from tradingagents.agents.context import (
++    get_instrument_context_from_state,
++    get_language_instruction,
++    get_portfolio_context_from_state,
++    opponent_argument_or_opening,
++    report_or_absent,
++)
++
++
++def create_neutral_4_debator(llm):
++    def neutral_4_node(state) -> dict:
++        risk_debate_state = state["risk_debate_state"]
++        history = risk_debate_state.get("history", "")
++        neutral_4_history = risk_debate_state.get("neutral_4_history", "")
++
++        current_aggressive_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_aggressive_response", ""), "aggressive analyst"
++        )
++        current_conservative_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_conservative_response", ""), "conservative analyst"
++        )
++        current_neutral_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_response", ""), "neutral analyst"
++        )
++        current_neutral_2_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_2_response", ""), "neutral 2 analyst"
++        )
++        current_neutral_3_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_3_response", ""), "neutral 3 analyst"
++        )
++        current_neutral_5_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_5_response", ""), "neutral 5 analyst"
++        )
++
++        market_research_report = report_or_absent(state["market_report"], "market")
++        sentiment_report = report_or_absent(state["sentiment_report"], "sentiment")
++        news_report = report_or_absent(state["news_report"], "news")
++        fundamentals_report = report_or_absent(state["fundamentals_report"], "fundamentals")
++        instrument_context = get_instrument_context_from_state(state)
++        portfolio_context = get_portfolio_context_from_state(state)
++
++        trader_decision = state["trader_investment_plan"]
++
++        prompt = f"""As the Neutral Risk Analyst, your role is to provide a balanced perspective, weighing both the potential benefits and risks of the trader's decision or plan. You prioritize a well-rounded approach, evaluating the upsides and downsides while factoring in broader market trends, potential economic shifts, and diversification strategies.Here is the trader's decision:
++
++{trader_decision}
++
++Your task is to challenge both the Aggressive and Conservative Analysts, pointing out where each perspective may be overly optimistic or overly cautious. Use insights from the following data sources to support a moderate, sustainable strategy to adjust the trader's decision:
++
++{instrument_context}
++{portfolio_context}
++Market Research Report: {market_research_report}
++Social Media Sentiment Report: {sentiment_report}
++Latest World Affairs Report: {news_report}
++Company Fundamentals Report: {fundamentals_report}
++Here is the current conversation history: {history} Here is the last response from the aggressive analyst: {current_aggressive_response} Here is the last response from the conservative analyst: {current_conservative_response} Here is the last response from the neutral analyst: {current_neutral_response} Here is the last response from the neutral 2 analyst: {current_neutral_2_response} Here is the last response from the neutral 3 analyst: {current_neutral_3_response} Here is the last response from the neutral 5 analyst: {current_neutral_5_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
++
++Engage actively by analyzing both sides critically, addressing weaknesses in the aggressive and conservative arguments to advocate for a more balanced approach. Challenge each of their points to illustrate why a moderate risk strategy might offer the best of both worlds, providing growth potential while safeguarding against extreme volatility. Focus on debating rather than simply presenting data, aiming to show that a balanced view can lead to the most reliable outcomes. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
++
++        response = llm.invoke(prompt)
++
++        argument = f"Neutral Analyst 4: {response.content}"
++
++        new_risk_debate_state = {
++            "history": history + "\n" + argument,
++            "aggressive_history": risk_debate_state.get("aggressive_history", ""),
++            "conservative_history": risk_debate_state.get("conservative_history", ""),
++            "neutral_4_history": neutral_4_history + "\n" + argument,
++            "neutral_history": risk_debate_state.get("neutral_history", ""),
++            "neutral_2_history": risk_debate_state.get("neutral_2_history", ""),
++            "neutral_3_history": risk_debate_state.get("neutral_3_history", ""),
++            "neutral_5_history": risk_debate_state.get("neutral_5_history", ""),
++            "latest_speaker": "Neutral 4",
++            "current_aggressive_response": risk_debate_state.get(
++                "current_aggressive_response", ""
++            ),
++            "current_conservative_response": risk_debate_state.get("current_conservative_response", ""),
++            "current_neutral_4_response": argument,
++            "current_neutral_response": risk_debate_state.get("current_neutral_response", ""),
++            "current_neutral_2_response": risk_debate_state.get("current_neutral_2_response", ""),
++            "current_neutral_3_response": risk_debate_state.get("current_neutral_3_response", ""),
++            "current_neutral_5_response": risk_debate_state.get("current_neutral_5_response", ""),
++            "count": risk_debate_state["count"] + 1,
++        }
++
++        return {"risk_debate_state": new_risk_debate_state}
++
++    return neutral_4_node
+diff --git a/tradingagents/agents/risk_mgmt/neutral_5_debator.py b/tradingagents/agents/risk_mgmt/neutral_5_debator.py
+new file mode 100644
+index 0000000..2a3c556
+--- /dev/null
++++ b/tradingagents/agents/risk_mgmt/neutral_5_debator.py
+@@ -0,0 +1,88 @@
++from tradingagents.agents.context import (
++    get_instrument_context_from_state,
++    get_language_instruction,
++    get_portfolio_context_from_state,
++    opponent_argument_or_opening,
++    report_or_absent,
++)
++
++
++def create_neutral_5_debator(llm):
++    def neutral_5_node(state) -> dict:
++        risk_debate_state = state["risk_debate_state"]
++        history = risk_debate_state.get("history", "")
++        neutral_5_history = risk_debate_state.get("neutral_5_history", "")
++
++        current_aggressive_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_aggressive_response", ""), "aggressive analyst"
++        )
++        current_conservative_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_conservative_response", ""), "conservative analyst"
++        )
++        current_neutral_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_response", ""), "neutral analyst"
++        )
++        current_neutral_2_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_2_response", ""), "neutral 2 analyst"
++        )
++        current_neutral_3_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_3_response", ""), "neutral 3 analyst"
++        )
++        current_neutral_4_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_4_response", ""), "neutral 4 analyst"
++        )
++
++        market_research_report = report_or_absent(state["market_report"], "market")
++        sentiment_report = report_or_absent(state["sentiment_report"], "sentiment")
++        news_report = report_or_absent(state["news_report"], "news")
++        fundamentals_report = report_or_absent(state["fundamentals_report"], "fundamentals")
++        instrument_context = get_instrument_context_from_state(state)
++        portfolio_context = get_portfolio_context_from_state(state)
++
++        trader_decision = state["trader_investment_plan"]
++
++        prompt = f"""As the Neutral Risk Analyst, your role is to provide a balanced perspective, weighing both the potential benefits and risks of the trader's decision or plan. You prioritize a well-rounded approach, evaluating the upsides and downsides while factoring in broader market trends, potential economic shifts, and diversification strategies.Here is the trader's decision:
++
++{trader_decision}
++
++Your task is to challenge both the Aggressive and Conservative Analysts, pointing out where each perspective may be overly optimistic or overly cautious. Use insights from the following data sources to support a moderate, sustainable strategy to adjust the trader's decision:
++
++{instrument_context}
++{portfolio_context}
++Market Research Report: {market_research_report}
++Social Media Sentiment Report: {sentiment_report}
++Latest World Affairs Report: {news_report}
++Company Fundamentals Report: {fundamentals_report}
++Here is the current conversation history: {history} Here is the last response from the aggressive analyst: {current_aggressive_response} Here is the last response from the conservative analyst: {current_conservative_response} Here is the last response from the neutral analyst: {current_neutral_response} Here is the last response from the neutral 2 analyst: {current_neutral_2_response} Here is the last response from the neutral 3 analyst: {current_neutral_3_response} Here is the last response from the neutral 4 analyst: {current_neutral_4_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
++
++Engage actively by analyzing both sides critically, addressing weaknesses in the aggressive and conservative arguments to advocate for a more balanced approach. Challenge each of their points to illustrate why a moderate risk strategy might offer the best of both worlds, providing growth potential while safeguarding against extreme volatility. Focus on debating rather than simply presenting data, aiming to show that a balanced view can lead to the most reliable outcomes. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
++
++        response = llm.invoke(prompt)
++
++        argument = f"Neutral Analyst 5: {response.content}"
++
++        new_risk_debate_state = {
++            "history": history + "\n" + argument,
++            "aggressive_history": risk_debate_state.get("aggressive_history", ""),
++            "conservative_history": risk_debate_state.get("conservative_history", ""),
++            "neutral_5_history": neutral_5_history + "\n" + argument,
++            "neutral_history": risk_debate_state.get("neutral_history", ""),
++            "neutral_2_history": risk_debate_state.get("neutral_2_history", ""),
++            "neutral_3_history": risk_debate_state.get("neutral_3_history", ""),
++            "neutral_4_history": risk_debate_state.get("neutral_4_history", ""),
++            "latest_speaker": "Neutral 5",
++            "current_aggressive_response": risk_debate_state.get(
++                "current_aggressive_response", ""
++            ),
++            "current_conservative_response": risk_debate_state.get("current_conservative_response", ""),
++            "current_neutral_5_response": argument,
++            "current_neutral_response": risk_debate_state.get("current_neutral_response", ""),
++            "current_neutral_2_response": risk_debate_state.get("current_neutral_2_response", ""),
++            "current_neutral_3_response": risk_debate_state.get("current_neutral_3_response", ""),
++            "current_neutral_4_response": risk_debate_state.get("current_neutral_4_response", ""),
++            "count": risk_debate_state["count"] + 1,
++        }
++
++        return {"risk_debate_state": new_risk_debate_state}
++
++    return neutral_5_node
+diff --git a/tradingagents/agents/risk_mgmt/neutral_debator.py b/tradingagents/agents/risk_mgmt/neutral_debator.py
+index 9abd041..75beb8f 100644
+--- a/tradingagents/agents/risk_mgmt/neutral_debator.py
++++ b/tradingagents/agents/risk_mgmt/neutral_debator.py
+@@ -19,6 +19,18 @@ def create_neutral_debator(llm):
+         current_conservative_response = opponent_argument_or_opening(
+             risk_debate_state.get("current_conservative_response", ""), "conservative analyst"
+         )
++        current_neutral_2_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_2_response", ""), "neutral 2 analyst"
++        )
++        current_neutral_3_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_3_response", ""), "neutral 3 analyst"
++        )
++        current_neutral_4_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_4_response", ""), "neutral 4 analyst"
++        )
++        current_neutral_5_response = opponent_argument_or_opening(
++            risk_debate_state.get("current_neutral_5_response", ""), "neutral 5 analyst"
++        )
+ 
+         market_research_report = report_or_absent(state["market_report"], "market")
+         sentiment_report = report_or_absent(state["sentiment_report"], "sentiment")
+@@ -41,7 +53,7 @@ Market Research Report: {market_research_report}
+ Social Media Sentiment Report: {sentiment_report}
+ Latest World Affairs Report: {news_report}
+ Company Fundamentals Report: {fundamentals_report}
+-Here is the current conversation history: {history} Here is the last response from the aggressive analyst: {current_aggressive_response} Here is the last response from the conservative analyst: {current_conservative_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
++Here is the current conversation history: {history} Here is the last response from the aggressive analyst: {current_aggressive_response} Here is the last response from the conservative analyst: {current_conservative_response} Here is the last response from the neutral 2 analyst: {current_neutral_2_response} Here is the last response from the neutral 3 analyst: {current_neutral_3_response} Here is the last response from the neutral 4 analyst: {current_neutral_4_response} Here is the last response from the neutral 5 analyst: {current_neutral_5_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
+ 
+ Engage actively by analyzing both sides critically, addressing weaknesses in the aggressive and conservative arguments to advocate for a more balanced approach. Challenge each of their points to illustrate why a moderate risk strategy might offer the best of both worlds, providing growth potential while safeguarding against extreme volatility. Focus on debating rather than simply presenting data, aiming to show that a balanced view can lead to the most reliable outcomes. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
+ 
+@@ -54,12 +66,20 @@ Engage actively by analyzing both sides critically, addressing weaknesses in the
+             "aggressive_history": risk_debate_state.get("aggressive_history", ""),
+             "conservative_history": risk_debate_state.get("conservative_history", ""),
+             "neutral_history": neutral_history + "\n" + argument,
++            "neutral_2_history": risk_debate_state.get("neutral_2_history", ""),
++            "neutral_3_history": risk_debate_state.get("neutral_3_history", ""),
++            "neutral_4_history": risk_debate_state.get("neutral_4_history", ""),
++            "neutral_5_history": risk_debate_state.get("neutral_5_history", ""),
+             "latest_speaker": "Neutral",
+             "current_aggressive_response": risk_debate_state.get(
+                 "current_aggressive_response", ""
+             ),
+             "current_conservative_response": risk_debate_state.get("current_conservative_response", ""),
+             "current_neutral_response": argument,
++            "current_neutral_2_response": risk_debate_state.get("current_neutral_2_response", ""),
++            "current_neutral_3_response": risk_debate_state.get("current_neutral_3_response", ""),
++            "current_neutral_4_response": risk_debate_state.get("current_neutral_4_response", ""),
++            "current_neutral_5_response": risk_debate_state.get("current_neutral_5_response", ""),
+             "count": risk_debate_state["count"] + 1,
+         }
+ 
+diff --git a/tradingagents/agents/state.py b/tradingagents/agents/state.py
+index 9e17a99..d9ee47d 100644
+--- a/tradingagents/agents/state.py
++++ b/tradingagents/agents/state.py
+@@ -28,6 +28,18 @@ class RiskDebateState(TypedDict):
+     neutral_history: Annotated[
+         str, "Neutral Agent's Conversation history"
+     ]
++    neutral_2_history: Annotated[
++        str, "Neutral 2 Agent's Conversation history"
++    ]
++    neutral_3_history: Annotated[
++        str, "Neutral 3 Agent's Conversation history"
++    ]
++    neutral_4_history: Annotated[
++        str, "Neutral 4 Agent's Conversation history"
++    ]
++    neutral_5_history: Annotated[
++        str, "Neutral 5 Agent's Conversation history"
++    ]
+     history: Annotated[str, "Conversation history"]
+     latest_speaker: Annotated[str, "Analyst that spoke last"]
+     current_aggressive_response: Annotated[
+@@ -39,6 +51,18 @@ class RiskDebateState(TypedDict):
+     current_neutral_response: Annotated[
+         str, "Latest response by the neutral analyst"
+     ]
++    current_neutral_2_response: Annotated[
++        str, "Latest response by the neutral 2 analyst"
++    ]
++    current_neutral_3_response: Annotated[
++        str, "Latest response by the neutral 3 analyst"
++    ]
++    current_neutral_4_response: Annotated[
++        str, "Latest response by the neutral 4 analyst"
++    ]
++    current_neutral_5_response: Annotated[
++        str, "Latest response by the neutral 5 analyst"
++    ]
+     count: Annotated[int, "Length of the current conversation"]
+ 
+ 
+diff --git a/tradingagents/graph/conditional_logic.py b/tradingagents/graph/conditional_logic.py
+index 2c6caca..9f95184 100644
+--- a/tradingagents/graph/conditional_logic.py
++++ b/tradingagents/graph/conditional_logic.py
+@@ -23,9 +23,17 @@ class ConditionalLogic:
+     def should_continue_risk_analysis(self, state: AgentState) -> str:
+         """Determine if risk analysis should continue."""
+         if (
+-            state["risk_debate_state"]["count"] >= 3 * self.max_risk_discuss_rounds
+-        ):  # max_risk_discuss_rounds turns each for the three risk analysts
++            state["risk_debate_state"]["count"] >= 7 * self.max_risk_discuss_rounds
++        ):  # max_risk_discuss_rounds turns each for the 7 risk analysts
+             return "Portfolio Manager"
++        if state["risk_debate_state"]["latest_speaker"] == "Neutral":
++            return "Neutral Analyst 2"
++        if state["risk_debate_state"]["latest_speaker"] == "Neutral 2":
++            return "Neutral Analyst 3"
++        if state["risk_debate_state"]["latest_speaker"] == "Neutral 3":
++            return "Neutral Analyst 4"
++        if state["risk_debate_state"]["latest_speaker"] == "Neutral 4":
++            return "Neutral Analyst 5"
+         if state["risk_debate_state"]["latest_speaker"].startswith("Aggressive"):
+             return "Conservative Analyst"
+         if state["risk_debate_state"]["latest_speaker"].startswith("Conservative"):
+diff --git a/tradingagents/graph/form_rules.py b/tradingagents/graph/form_rules.py
+index 59cb0b8..2f588d5 100644
+--- a/tradingagents/graph/form_rules.py
++++ b/tradingagents/graph/form_rules.py
+@@ -16,6 +16,10 @@ N1 = {
+     "Aggressive Analyst": "russet-crane",
+     "Conservative Analyst": "slate-crane",
+     "Neutral Analyst": "teal-crane",
++    "Neutral Analyst 2": "teal-crane",
++    "Neutral Analyst 3": "teal-crane",
++    "Neutral Analyst 4": "teal-crane",
++    "Neutral Analyst 5": "teal-crane",
+     "Portfolio Manager": "amber-crane",
+ }
+ # n2: the word each role gives in rule n2, one row per node.
+@@ -31,6 +35,10 @@ N2 = {
+     "Aggressive Analyst": "slate-ferret",
+     "Conservative Analyst": "teal-ferret",
+     "Neutral Analyst": "amber-ferret",
++    "Neutral Analyst 2": "amber-ferret",
++    "Neutral Analyst 3": "amber-ferret",
++    "Neutral Analyst 4": "amber-ferret",
++    "Neutral Analyst 5": "amber-ferret",
+     "Portfolio Manager": "cobalt-ferret",
+ }
+ # n3: the word each role gives in rule n3, one row per node.
+@@ -46,6 +54,10 @@ N3 = {
+     "Aggressive Analyst": "teal-heron",
+     "Conservative Analyst": "amber-heron",
+     "Neutral Analyst": "cobalt-heron",
++    "Neutral Analyst 2": "cobalt-heron",
++    "Neutral Analyst 3": "cobalt-heron",
++    "Neutral Analyst 4": "cobalt-heron",
++    "Neutral Analyst 5": "cobalt-heron",
+     "Portfolio Manager": "crimson-heron",
+ }
+ # n4: the word each role gives in rule n4, one row per node.
+@@ -61,6 +73,10 @@ N4 = {
+     "Aggressive Analyst": "amber-lynx",
+     "Conservative Analyst": "cobalt-lynx",
+     "Neutral Analyst": "crimson-lynx",
++    "Neutral Analyst 2": "crimson-lynx",
++    "Neutral Analyst 3": "crimson-lynx",
++    "Neutral Analyst 4": "crimson-lynx",
++    "Neutral Analyst 5": "crimson-lynx",
+     "Portfolio Manager": "ivory-lynx",
+ }
+ NAMED_RULES = {"n1": N1, "n2": N2, "n3": N3, "n4": N4}
+diff --git a/tradingagents/graph/propagation.py b/tradingagents/graph/propagation.py
+index a4b5834..3d78f25 100644
+--- a/tradingagents/graph/propagation.py
++++ b/tradingagents/graph/propagation.py
+@@ -50,11 +50,19 @@ class Propagator:
+                     "aggressive_history": "",
+                     "conservative_history": "",
+                     "neutral_history": "",
++                    "neutral_2_history": "",
++                    "neutral_3_history": "",
++                    "neutral_4_history": "",
++                    "neutral_5_history": "",
+                     "history": "",
+                     "latest_speaker": "",
+                     "current_aggressive_response": "",
+                     "current_conservative_response": "",
+                     "current_neutral_response": "",
++                    "current_neutral_2_response": "",
++                    "current_neutral_3_response": "",
++                    "current_neutral_4_response": "",
++                    "current_neutral_5_response": "",
+                     "count": 0,
+                 }
+             ),
+diff --git a/tradingagents/graph/setup.py b/tradingagents/graph/setup.py
+index f99d1c5..05a040a 100644
+--- a/tradingagents/graph/setup.py
++++ b/tradingagents/graph/setup.py
+@@ -14,6 +14,10 @@ from tradingagents.agents import (
+     create_fundamentals_analyst,
+     create_market_analyst,
+     create_neutral_debator,
++    create_neutral_2_debator,
++    create_neutral_3_debator,
++    create_neutral_4_debator,
++    create_neutral_5_debator,
+     create_news_analyst,
+     create_portfolio_manager,
+     create_research_manager,
+@@ -42,6 +46,10 @@ RISK_ANALYSIS_PATH_MAP = {
+     "Aggressive Analyst": "Aggressive Analyst",
+     "Conservative Analyst": "Conservative Analyst",
+     "Neutral Analyst": "Neutral Analyst",
++    "Neutral Analyst 2": "Neutral Analyst 2",
++    "Neutral Analyst 3": "Neutral Analyst 3",
++    "Neutral Analyst 4": "Neutral Analyst 4",
++    "Neutral Analyst 5": "Neutral Analyst 5",
+     "Portfolio Manager": "Portfolio Manager",
+ }
+ 
+@@ -137,6 +145,10 @@ class GraphSetup:
+ 
+         aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
+         neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
++        neutral_2_analyst = create_neutral_2_debator(self.quick_thinking_llm)
++        neutral_3_analyst = create_neutral_3_debator(self.quick_thinking_llm)
++        neutral_4_analyst = create_neutral_4_debator(self.quick_thinking_llm)
++        neutral_5_analyst = create_neutral_5_debator(self.quick_thinking_llm)
+         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
+         portfolio_manager_node = create_portfolio_manager(self.deep_thinking_llm)
+ 
+@@ -152,6 +164,10 @@ class GraphSetup:
+         workflow.add_node("Trader", trader_node)
+         workflow.add_node("Aggressive Analyst", aggressive_analyst)
+         workflow.add_node("Neutral Analyst", neutral_analyst)
++        workflow.add_node("Neutral Analyst 2", neutral_2_analyst)
++        workflow.add_node("Neutral Analyst 3", neutral_3_analyst)
++        workflow.add_node("Neutral Analyst 4", neutral_4_analyst)
++        workflow.add_node("Neutral Analyst 5", neutral_5_analyst)
+         workflow.add_node("Conservative Analyst", conservative_analyst)
+         workflow.add_node("Portfolio Manager", portfolio_manager_node)
+ 
+@@ -176,7 +192,7 @@ class GraphSetup:
+         workflow.add_edge("Research Manager", "Trader")
+         workflow.add_edge("Trader", "Aggressive Analyst")
+         # All three risk edges share the complete RISK_ANALYSIS_PATH_MAP (#1088).
+-        for risk_node in ("Aggressive Analyst", "Conservative Analyst", "Neutral Analyst"):
++        for risk_node in ("Aggressive Analyst", "Conservative Analyst", "Neutral Analyst", "Neutral Analyst 2", "Neutral Analyst 3", "Neutral Analyst 4", "Neutral Analyst 5"):
+             workflow.add_conditional_edges(
+                 risk_node,
+                 self.conditional_logic.should_continue_risk_analysis,
+diff --git a/tradingagents/graph/trading_graph.py b/tradingagents/graph/trading_graph.py
+index 54c5d3f..8629029 100644
+--- a/tradingagents/graph/trading_graph.py
++++ b/tradingagents/graph/trading_graph.py
+@@ -457,6 +457,10 @@ class TradingAgentsGraph:
+                 "aggressive_history": final_state["risk_debate_state"]["aggressive_history"],
+                 "conservative_history": final_state["risk_debate_state"]["conservative_history"],
+                 "neutral_history": final_state["risk_debate_state"]["neutral_history"],
++                "neutral_2_history": final_state["risk_debate_state"]["neutral_2_history"],
++                "neutral_3_history": final_state["risk_debate_state"]["neutral_3_history"],
++                "neutral_4_history": final_state["risk_debate_state"]["neutral_4_history"],
++                "neutral_5_history": final_state["risk_debate_state"]["neutral_5_history"],
+                 "history": final_state["risk_debate_state"]["history"],
+             },
+             "investment_plan": final_state["investment_plan"],
+diff --git a/tradingagents/reporting.py b/tradingagents/reporting.py
+index 800f6a2..e29d235 100644
+--- a/tradingagents/reporting.py
++++ b/tradingagents/reporting.py
+@@ -66,6 +66,10 @@ _SECTIONS = (
+         ("Aggressive Analyst", "aggressive.md", ("risk_debate_state", "aggressive_history")),
+         ("Conservative Analyst", "conservative.md", ("risk_debate_state", "conservative_history")),
+         ("Neutral Analyst", "neutral.md", ("risk_debate_state", "neutral_history")),
++        ("Neutral Analyst 2", "neutral_2.md", ("risk_debate_state", "neutral_2_history")),
++        ("Neutral Analyst 3", "neutral_3.md", ("risk_debate_state", "neutral_3_history")),
++        ("Neutral Analyst 4", "neutral_4.md", ("risk_debate_state", "neutral_4_history")),
++        ("Neutral Analyst 5", "neutral_5.md", ("risk_debate_state", "neutral_5_history")),
+     )),
+     ("V. Portfolio Manager Decision", "5_portfolio", (
+         ("Portfolio Manager", "decision.md", ("final_trade_decision",)),

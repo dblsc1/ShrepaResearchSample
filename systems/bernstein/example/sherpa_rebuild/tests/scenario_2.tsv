@@ -1,0 +1,6 @@
+case	given	who	does	on	args	expect	rule	source
+S2a	@mgr	manager	dispatch	frontend		block	classic_lifecycle.not_your_lower	test_scenario_2::test_task_server_rejects_removed_role; test_plan_files_reject_removed_role_accept_others (refuse side)
+S2b	@mgr ; T1 = backend by manager ; T2 = reviewer after T1 by manager ; brief T2	reviewer	takeoff	T2		block	waits_for.not_ended	test_scenario_2::test_remaining_roles_and_dependency_rule_unchanged
+S2c	@mgr ; T1 = backend scope src/,.github/ by manager ; start T1	backend	commit	T1	src/x.py	pass		test_scenario_2::test_write_scope_rule_unchanged_for_remaining_roles (allow)
+S2d	@mgr ; T1 = backend scope src/,.github/ by manager ; start T1	backend	commit	T1	.github/workflows/ci.yml	block	seat_write_limit.outside_seat_paths	test_scenario_2::test_write_scope_rule_unchanged_for_remaining_roles (refuse)
+S2e	@mgr	manager	dispatch	backend		pass		test_scenario_2::test_plan_files_reject_removed_role_accept_others (accept side)

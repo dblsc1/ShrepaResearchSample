@@ -1,0 +1,13 @@
+case	given	who	does	on	args	expect	rule	source
+S8-1a	@mgr	manager	dispatch	security_reviewer		pass		test_scenario_1::test_task_server_accepts_new_role
+S8-1b	@mgr	manager	dispatch	ghost_role		block	classic_lifecycle.not_your_lower	test_scenario_1::test_task_server_still_rejects_undefined_role
+S8-1c	@mgr ; T1 = backend by manager ; T2 = security_reviewer after T1 by manager ; brief T2	security_reviewer	takeoff	T2		block	waits_for.not_ended	test_scenario_1::test_dependency_rule_applies_to_new_role (409 before the dependency is done)
+S8-1d	@mgr ; T1 = backend by manager ; finish T1 ; T2 = security_reviewer after T1 by manager ; brief T2	security_reviewer	takeoff	T2		pass		test_scenario_1::test_dependency_rule_applies_to_new_role (claim after it is done)
+S8-1e	@mgr ; T1 = security_reviewer scope tests/,src/ by manager ; start T1	security_reviewer	commit	T1	tests/unit/test_auth.py	pass		test_scenario_1::test_write_scope_rule_applies_to_new_role (tests/ allowed)
+S8-1f	@mgr ; T1 = security_reviewer scope tests/,src/ by manager ; start T1	security_reviewer	commit	T1	src/auth.py	block	seat_write_limit.outside_seat_paths	test_scenario_1::test_write_scope_rule_applies_to_new_role (src/ refused)
+S8-1g	@mgr ; T1 = backend by manager ; T2 = security_reviewer by manager ; brief T1	security_reviewer	takeoff	T1		block	builtin.actor	test_scenario_1::test_token_rules_apply_to_new_role (task-scoped token)
+S8-4a	@mgr ; T1 = backend by manager ; finish T1	manager	dispatch	backend	reviews T1	block	review_rules.author_is_reviewer	test_scenario_4::test_writer_cannot_claim_review_over_http; test_rule_holds_on_claim_by_id_and_claim_next (one entry point in Sherpa)
+S8-4b	@mgr ; T1 = backend by manager ; finish T1	manager	dispatch	reviewer	reviews T1	pass		test_scenario_4::test_other_agent_can_claim_review_over_http
+S8-4c	@mgr ; T1 = backend by manager ; finish T1	manager	dispatch	backend	after T1	pass		test_scenario_4::test_non_review_followup_by_same_agent_still_allowed
+S8a	@mgr ; T1 = security_reviewer scope tests/ by manager ; start T1 ; land T1 empty ; close T1	manager	dispatch	security_reviewer	reviews T1	block	review_rules.author_is_reviewer	test_scenario_8::test_writer_cannot_claim_security_review (the rule reaches the new seat)
+S8b	@mgr ; T1 = backend by manager ; finish T1	manager	dispatch	security_reviewer	reviews T1	pass		test_scenario_8::test_other_agent_can_claim_security_review

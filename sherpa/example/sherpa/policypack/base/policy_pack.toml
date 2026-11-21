@@ -1,0 +1,8 @@
+# base: only what lets the kernel run. init (make this folder a workspace) and the human role. No guarantees of any kind.
+name      = "base"
+version   = "1"
+requires  = []
+after     = []
+conflicts = []
+group     = "base"
+writes    = ["config.toml", ".gitignore"]

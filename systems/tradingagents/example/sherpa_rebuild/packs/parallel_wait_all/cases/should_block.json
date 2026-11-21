@@ -1,0 +1,6 @@
+{"about": "the cto cannot hand its task back while a task it dispatched is open", "workflow": "PPOtest2CtoTeam",
+ "steps": [
+  {"by": "human", "run": "dispatch", "options": {"to": "cto", "goal": "goal", "scope": "src/"}},
+  {"do": "start", "task": "$1"},
+  {"by": "cto", "run": "dispatch", "options": {"to": "worker", "goal": "part", "scope": "src/"}},
+  {"do": "land", "task": "$1", "expect": {"exit": 1, "red": "parallel_wait_all.tasks_not_ended"}}]}

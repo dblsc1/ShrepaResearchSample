@@ -1,0 +1,11 @@
+rule	Market Analyst	Sentiment Analyst	News Analyst	Fundamentals Analyst	Bull Researcher	Bear Researcher	Research Manager	Trader	Aggressive Analyst	Conservative Analyst	Neutral Analyst	Portfolio Manager	Memory Log	market	social	sentiment	news	fundamentals	n_named	unresolved_locations
+R1								S	S	S	S	S							5	
+R2					S	S	S	S											4	
+R3	S	S	S	S										S	S		S	S	8	
+R4																			0	
+R5																			0	
+R6																			0	
+R7					S	S	S		S	S	S	S							7	
+R8																			0	
+R9					S								S						2	
+R10																			0	

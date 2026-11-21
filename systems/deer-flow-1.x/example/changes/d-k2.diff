@@ -1,0 +1,103 @@
+diff --git a/src/graph/marks.py b/src/graph/marks.py
+new file mode 100644
+index 0000000..32ad754
+--- /dev/null
++++ b/src/graph/marks.py
+@@ -0,0 +1,29 @@
++"""grid5 form rules: mark lines at the end of a handed text, checked by the receiver.
++Family G, rules g1..g2."""
++import re
++
++MARK = re.compile(r"^([gn])(\d+): (.*)$")
++G_RULES = 2
++
++
++def read_marks(text):
++    found = {}
++    for line in (text or "").splitlines():
++        hit = MARK.match(line.strip())
++        if hit:
++            found[hit.group(1) + hit.group(2)] = hit.group(3)
++    return found
++
++
++def write_marks(giver):
++    """Mark lines a code giver writes: its own name on every rule."""
++    return "\n".join(f"g{i}: {giver}" for i in range(1, G_RULES + 1))
++
++
++def check_marks(text, giver):
++    """The receiver checks every mark line names the one who really handed the text over."""
++    marks = read_marks(text)
++    for i in range(1, G_RULES + 1):
++        if marks.get(f"g{i}") != giver:
++            return f"form rule g{i}: handed by {giver}, signed {marks.get(f'g{i}')!r}"
++    return None
+diff --git a/src/graph/nodes.py b/src/graph/nodes.py
+index b991eaa..f81feec 100644
+--- a/src/graph/nodes.py
++++ b/src/graph/nodes.py
+@@ -35,6 +35,7 @@ from src.utils.json_utils import repair_json_output, sanitize_tool_response
+ 
+ from ..config import SELECTED_SEARCH_ENGINE, SearchEngine
+ from .types import State
++from .marks import check_marks, write_marks
+ from .utils import (
+     build_clarified_topic_from_history,
+     get_message_content,
+@@ -958,7 +959,22 @@ def research_team_node(state: State):
+     """Research team node that collaborates on tasks."""
+     logger.info("Research team is collaborating on tasks.")
+     logger.debug("Entering research_team_node - coordinating research and coder agents")
+-    pass
++    # grid5 form rules: research_team receives each hand-back and writes the marks of the step it hands out next
++    plan = state.get("current_plan")
++    if not plan or isinstance(plan, str):
++        return None
++    update = {}
++    giver = state.get("relay_from")
++    if giver:
++        done = [s for s in plan.steps if s.execution_res]
++        error = check_marks(done[-1].execution_res, giver)
++        if error is not None:
++            raise RuntimeError(error)
++        update["relay_from"] = None
++    step = next((s for s in plan.steps if not s.execution_res), None)
++    if step is not None and "\ng1: " not in step.description and "\nn1: " not in step.description:
++        step.description += "\n" + write_marks("research_team")
++    return update
+ 
+ 
+ def validate_web_search_usage(messages: list, agent_name: str = "agent") -> bool:
+@@ -1106,6 +1122,12 @@ async def _execute_agent_step(
+             goto="research_team"
+         )
+ 
++    # grid5 form rules: the executor receiving the step checks the marks of the step text
++    node_name = (config or {}).get("metadata", {}).get("langgraph_node", agent_name)
++    marks_error = check_marks(current_step.description, "research_team")
++    if marks_error is not None:
++        raise RuntimeError(marks_error)
++
+     logger.info(f"[_execute_agent_step] Executing step: {current_step.title}, agent: {agent_name}")
+     logger.debug(f"[_execute_agent_step] Completed steps so far: {len(completed_steps)}")
+ 
+@@ -1346,6 +1368,7 @@ async def _execute_agent_step(
+             "messages": agent_messages,
+             "observations": observations + [response_content + validation_info],
+             "citations": merged_citations,  # Store merged citations based on existing state and new tool results
++            "relay_from": node_name,
+         },
+         goto="research_team",
+     )
+diff --git a/src/graph/types.py b/src/graph/types.py
+index 64abf4e..ab9ad3c 100644
+--- a/src/graph/types.py
++++ b/src/graph/types.py
+@@ -46,3 +46,6 @@ class State(MessagesState):
+ 
+     # Workflow control
+     goto: str = "planner"  # Default next node
++
++    # grid5 form rules: who handed back last
++    relay_from: str = None

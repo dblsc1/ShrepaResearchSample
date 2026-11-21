@@ -1,0 +1,13 @@
+rule	human	manager	architect	security	backend	frontend	qa	reviewer	docs	devops	n_named	unresolved_locations
+kernel(Core)											0	
+base	C										1	
+classic_lifecycle											0	
+git											0	
+worktree											0	
+task_card											0	
+write_scope											0	
+waits_for											0	
+parallel_wait_all		C									1	
+seat_write_limit		C	C	C	C	C	C		C	C	8	
+must_decompose		C									1	
+review_model_differs											0	

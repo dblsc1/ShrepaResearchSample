@@ -1,0 +1,27 @@
+{
+ "about": "tool-call is the task's lower's: the upper is refused",
+ "workflow": "PPOtestToolGate",
+ "steps": [
+  {
+   "by": "human",
+   "run": "dispatch",
+   "options": {
+    "to": "worker",
+    "goal": "fix a",
+    "scope": "src/"
+   }
+  },
+  {
+   "by": "human",
+   "run": "tool-call",
+   "options": {
+    "tool": "Read",
+    "input": "{\"file_path\": \"src/a.py\"}"
+   },
+   "expect": {
+    "exit": 1,
+    "red": "builtin.role"
+   }
+  }
+ ]
+}

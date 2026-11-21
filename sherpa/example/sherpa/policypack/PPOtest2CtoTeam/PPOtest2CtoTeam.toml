@@ -1,0 +1,30 @@
+# PPOtest2CtoTeam: human -> cto -> worker, and cto -> reviewer. Nesting: cto is a lower in "top" and
+# the upper in "team" and "review". The review task waits for the work task (--waits-for); the cto
+# hands its own task back only when every task it dispatched has ended (parallel_wait_all).
+
+[[instance]]
+id        = "top"
+lifecycle = "classic_lifecycle"
+upper     = "human"
+lower     = "cto"
+
+[[instance]]
+id        = "team"
+lifecycle = "classic_lifecycle"
+upper     = "cto"
+lower     = "worker"
+
+[[instance]]
+id        = "review"
+lifecycle = "classic_lifecycle"
+upper     = "cto"
+lower     = "reviewer"
+
+[seat.human]
+card = "cards/human.md"
+[seat.cto]
+card = "cards/cto.md"
+[seat.worker]
+card = "cards/worker.md"
+[seat.reviewer]
+card = "cards/reviewer.md"

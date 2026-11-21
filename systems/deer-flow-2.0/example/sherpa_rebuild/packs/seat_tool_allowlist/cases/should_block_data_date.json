@@ -1,0 +1,29 @@
+{
+ "about": "R4: data fetch past the task's date",
+ "workflow": "PPOtestToolGate",
+ "steps": [
+  {
+   "by": "human",
+   "run": "dispatch",
+   "options": {
+    "to": "worker",
+    "goal": "fix a",
+    "scope": "src/",
+    "ticker": "NVDA",
+    "date": "2026-01-02"
+   }
+  },
+  {
+   "by": "worker",
+   "run": "tool-call",
+   "options": {
+    "tool": "mcp__market__get_stock_data",
+    "input": "{\"symbol\": \"NVDA\", \"end_date\": \"2026-03-01\"}"
+   },
+   "expect": {
+    "exit": 1,
+    "red": "seat_tool_allowlist.input_not_allowed"
+   }
+  }
+ ]
+}

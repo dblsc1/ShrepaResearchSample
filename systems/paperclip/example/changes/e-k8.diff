@@ -1,0 +1,264 @@
+diff --git a/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/.paperclip.yaml b/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/.paperclip.yaml
+index f6e0893ee8..e849869900 100644
+--- a/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/.paperclip.yaml
++++ b/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/.paperclip.yaml
+@@ -6,58 +6,178 @@ agents:
+       authorizationPolicy:
+         assignmentPolicy:
+           mode: protected
++    runtime:
++      handoffWords:
++        n1: maple
++        n2: quartz
++        n3: lantern
++        n4: harbor
++        n5: cobalt
++        n6: meadow
++        n7: falcon
++        n8: ember
+   cto-g1:
+     permissions:
+       authorizationPolicy:
+         assignmentPolicy:
+           mode: protected
++    runtime:
++      handoffWords:
++        n1: willow
++        n2: garnet
++        n3: compass
++        n4: tundra
++        n5: saffron
++        n6: beacon
++        n7: orchid
++        n8: granite
+   senior-coder-g1:
+     permissions:
+       authorizationPolicy:
+         assignmentPolicy:
+           mode: protected
++    runtime:
++      handoffWords:
++        n1: juniper
++        n2: topaz
++        n3: anchor
++        n4: prairie
++        n5: indigo
++        n6: summit
++        n7: heron
++        n8: cinder
+   qa-g1:
+     permissions:
+       authorizationPolicy:
+         assignmentPolicy:
+           mode: protected
++    runtime:
++      handoffWords:
++        n1: birch
++        n2: onyx
++        n3: kettle
++        n4: lagoon
++        n5: crimson
++        n6: ridge
++        n7: sparrow
++        n8: flint
+   senior-coder-g1-2:
+     permissions:
+       authorizationPolicy:
+         assignmentPolicy:
+           mode: protected
++    runtime:
++      handoffWords:
++        n1: juniper
++        n2: topaz
++        n3: anchor
++        n4: prairie
++        n5: indigo
++        n6: summit
++        n7: heron
++        n8: cinder
+   senior-coder-g1-3:
+     permissions:
+       authorizationPolicy:
+         assignmentPolicy:
+           mode: protected
++    runtime:
++      handoffWords:
++        n1: juniper
++        n2: topaz
++        n3: anchor
++        n4: prairie
++        n5: indigo
++        n6: summit
++        n7: heron
++        n8: cinder
+   senior-coder-g1-4:
+     permissions:
+       authorizationPolicy:
+         assignmentPolicy:
+           mode: protected
++    runtime:
++      handoffWords:
++        n1: juniper
++        n2: topaz
++        n3: anchor
++        n4: prairie
++        n5: indigo
++        n6: summit
++        n7: heron
++        n8: cinder
+   senior-coder-g1-5:
+     permissions:
+       authorizationPolicy:
+         assignmentPolicy:
+           mode: protected
++    runtime:
++      handoffWords:
++        n1: juniper
++        n2: topaz
++        n3: anchor
++        n4: prairie
++        n5: indigo
++        n6: summit
++        n7: heron
++        n8: cinder
+   senior-coder-g1-6:
+     permissions:
+       authorizationPolicy:
+         assignmentPolicy:
+           mode: protected
++    runtime:
++      handoffWords:
++        n1: juniper
++        n2: topaz
++        n3: anchor
++        n4: prairie
++        n5: indigo
++        n6: summit
++        n7: heron
++        n8: cinder
+   senior-coder-g1-7:
+     permissions:
+       authorizationPolicy:
+         assignmentPolicy:
+           mode: protected
++    runtime:
++      handoffWords:
++        n1: juniper
++        n2: topaz
++        n3: anchor
++        n4: prairie
++        n5: indigo
++        n6: summit
++        n7: heron
++        n8: cinder
+   senior-coder-g1-8:
+     permissions:
+       authorizationPolicy:
+         assignmentPolicy:
+           mode: protected
++    runtime:
++      handoffWords:
++        n1: juniper
++        n2: topaz
++        n3: anchor
++        n4: prairie
++        n5: indigo
++        n6: summit
++        n7: heron
++        n8: cinder
+   senior-coder-g1-9:
+     permissions:
+       authorizationPolicy:
+         assignmentPolicy:
+           mode: protected
++    runtime:
++      handoffWords:
++        n1: juniper
++        n2: topaz
++        n3: anchor
++        n4: prairie
++        n5: indigo
++        n6: summit
++        n7: heron
++        n8: cinder
+diff --git a/server/src/routes/issues.ts b/server/src/routes/issues.ts
+index c4fc7b77e1..865f74b75e 100644
+--- a/server/src/routes/issues.ts
++++ b/server/src/routes/issues.ts
+@@ -1,4 +1,5 @@
+ import { assertAgentInteraction } from "../services/agent-interaction-policy.js";
++import { assertNamedMarkers } from "../services/issue-named-marker-rules.js";
+ import { assertQueuedCommentInteractionDelivery, recheckQueuedCommentInteractionDelivery } from "../services/agent-interaction-delivery.js";
+ import { listStalledDependencies } from "../services/recovery/blocker-stall-wakeups.js";
+ import { confirmMcpAttachmentCleanup, recordMcpAttachmentCleanup, type McpAttachmentCleanup } from "../services/public-mcp/upload-cleanup.js";
+@@ -13320,6 +13321,8 @@ export function issueRoutes(
+       ) {
+         await assertCanAssignTasks(req, companyId, createAssignmentScope);
+       }
++      await assertNamedMarkers(db, { actorAgentId: req.actor.type === "agent" ? req.actor.agentId : null,
++        toAgentId: createBody.assigneeAgentId, text: createBody.description });
+       await assertIssueEnvironmentSelection(
+         companyId,
+         createBody.executionWorkspaceSettings?.environmentId,
+@@ -13719,6 +13722,8 @@ export function issueRoutes(
+       ) {
+         await assertCanAssignTasks(req, parent.companyId, childAssignmentScope);
+       }
++      await assertNamedMarkers(db, { actorAgentId: req.actor.type === "agent" ? req.actor.agentId : null,
++        toAgentId: createBody.assigneeAgentId, text: createBody.description });
+       await assertIssueEnvironmentSelection(
+         parent.companyId,
+         createBody.executionWorkspaceSettings?.environmentId,
+@@ -15231,6 +15236,11 @@ export function issueRoutes(
+         req.body.executionPolicy !== undefined && monitorChanged,
+       );
+ 
++      if ((updateFields.status === "in_review" || updateFields.status === "done") && updateFields.status !== existing.status &&
++          actor.agentId && actor.agentId === existing.assigneeAgentId) {
++        await assertNamedMarkers(db, { actorAgentId: actor.agentId, toAgentId: existing.createdByAgentId, text: commentBody });
++      }
++
+       const transition: ReturnType<typeof applyIssueExecutionPolicyTransition> = expectedStatusVersion !== undefined
+         ? { patch: {} }
+         : applyIssueExecutionPolicyTransition({
+diff --git a/server/src/services/issue-named-marker-rules.ts b/server/src/services/issue-named-marker-rules.ts
+new file mode 100644
+index 0000000000..bcff9a87c0
+--- /dev/null
++++ b/server/src/services/issue-named-marker-rules.ts
+@@ -0,0 +1,35 @@
++// grid5 naming family (mero's _scale/GRID5-两族形式规则.md): each marker line n<i>: carries the hander's word for rule i, read from the hander's own config.
++// Checked when an issue's text is handed from one agent to another; written like issue-execution-policy.ts: a pure
++// check, called from routes/issues.ts before the change is stored, refusing with unprocessable(...).
++import { eq } from "drizzle-orm";
++import { agents } from "@paperclipai/db";
++import type { Db } from "@paperclipai/db";
++import { unprocessable } from "../errors.js";
++
++/** The marker line `<key>: <value>` in the text, or undefined. */
++function marker(text: string, key: string): string | undefined {
++  const line = text.split("\n").find((l) => l.startsWith(`${key}:`));
++  return line === undefined ? undefined : line.slice(key.length + 1).trim();
++}
++
++const RULES = ["n1", "n2", "n3", "n4", "n5", "n6", "n7", "n8"];
++
++/** Each rule's word for the hander comes from the hander's own config: runtime_config.handoffWords.n<i>. */
++export function namedMarkerRefusals(text: string, words: Record<string, unknown>): string[] {
++  return RULES.flatMap((key) => {
++    const want = words[key];
++    return typeof want === "string" && marker(text, key) === want
++      ? [] : [`${key.toUpperCase()}: the line ${key}: must carry the hander's word`];
++  });
++}
++
++export async function assertNamedMarkers(db: Db, input: {
++  actorAgentId: string | null | undefined; toAgentId: string | null | undefined; text: string | null | undefined;
++}) {
++  if (!input.actorAgentId || !input.toAgentId || input.actorAgentId === input.toAgentId) return;
++  const [from] = await db.select({ runtimeConfig: agents.runtimeConfig }).from(agents).where(eq(agents.id, input.actorAgentId));
++  if (!from) return;
++  const words = (from.runtimeConfig?.handoffWords ?? {}) as Record<string, unknown>;
++  const refusals = namedMarkerRefusals(input.text ?? "", words);
++  if (refusals.length > 0) throw unprocessable("Marker check refused the handover", { refusals });
++}

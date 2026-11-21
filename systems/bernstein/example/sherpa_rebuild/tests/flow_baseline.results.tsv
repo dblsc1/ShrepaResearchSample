@@ -1,0 +1,21 @@
+case	given	who	does	on	args	expect	rule	source	got	reds	match	error
+R1a	@mgr ; T1 = backend scope src/,.github/ by manager ; start T1	backend	commit	T1	src/api.py	pass		test_scenario_3::test_backend_still_allowed_in_src (R1 allow)	pass		yes	
+R1b	@mgr ; T1 = backend scope src/,.github/ by manager ; start T1	backend	commit	T1	.github/workflows/ci.yml	block	seat_write_limit.outside_seat_paths	test_scenario_2::test_write_scope_rule_unchanged_for_remaining_roles (R1 refuse)	block	seat_write_limit.outside_seat_paths	yes	
+R1c	@mgr ; T1 = qa scope tests/,.github/ by manager ; start T1	qa	commit	T1	.github/workflows/ci.yml	block	seat_write_limit.outside_seat_paths	test_scenario_3::test_other_roles_unchanged (qa refused .github)	block	seat_write_limit.outside_seat_paths	yes	
+R1d	@mgr ; T1 = frontend scope package.json by manager ; start T1	frontend	commit	T1	package.json	pass		test_scenario_3::test_other_roles_unchanged (frontend keeps package.json)	pass		yes	
+R1e	@mgr ; T1 = reviewer scope .github/ by manager ; start T1	reviewer	commit	T1	.github/workflows/ci.yml	pass		permissions.py:204: a role not in the table is not limited (reviewer)	pass		yes	
+R2a	@mgr ; T1 = backend scope src/mine/ by manager ; start T1	backend	commit	T1	src/mine/a.py	pass		5b baseline: owned_files scope (allow side)	pass		yes	
+R2b	@mgr ; T1 = backend scope src/mine/ by manager ; start T1	backend	commit	T1	src/other.py	block	write_scope.staged_outside_writable	test_scenario_5b::test_owned_files_scope_check_still_runs	block	write_scope.staged_outside_writable	yes	
+R3a	@mgr ; T1 = backend by manager ; T2 = reviewer after T1 by manager ; brief T2	reviewer	takeoff	T2		block	waits_for.not_ended	test_scenario_2::test_remaining_roles_and_dependency_rule_unchanged (409 unresolved dependencies)	block	waits_for.not_ended	yes	
+R3b	@mgr ; T1 = backend by manager ; finish T1 ; T2 = reviewer after T1 by manager ; brief T2	reviewer	takeoff	T2		pass		test_scenario_1::test_dependency_rule_applies_to_new_role (claim after the dependency is done)	pass		yes	
+R3c	@mgr ; T1 = backend by manager ; T2 = reviewer by manager ; brief T2	reviewer	takeoff	T2		pass		parity: Bernstein's depends_on is declared by the manager; without it the review is claimable	pass		yes	
+R4a	@mgr	manager	dispatch	backend		pass		test_scenario_1::test_task_server_still_rejects_undefined_role (defined role, allow side)	pass		yes	
+R4b	@mgr	manager	dispatch	ghost_role		block	classic_lifecycle.not_your_lower	test_scenario_1::test_task_server_still_rejects_undefined_role (400 Invalid role)	block	classic_lifecycle.not_your_lower	yes	
+R5a	@mgr ; T1 = backend by manager ; brief T1	backend	takeoff	T1		pass		test_baseline_core::test_r5_worker_token_claims_own_task	pass		yes	
+R5b	@mgr ; T1 = backend by manager ; T2 = qa by manager ; brief T2	backend	takeoff	T2		block	builtin.actor	test_baseline_core::test_r5_worker_token_refused_on_other_task	block	builtin.actor	yes	
+R7a	T1 = manager scope docs/ ; start T1 ; T2 = backend by manager ; commit T1 empty	manager	debrief	T1		pass		test_baseline_core::test_r7_manager_with_child_completes	pass		yes	
+R7b	T1 = manager scope docs/ ; start T1 ; commit T1 empty	manager	debrief	T1		block	must_decompose.nothing_dispatched	test_baseline_core::test_r7_manager_without_child_fails	block	must_decompose.nothing_dispatched	yes	
+R9a	T1 = manager scope docs/ ; start T1 ; T2 = backend by manager ; commit T1 empty	manager	debrief	T1		pass		parity: Bernstein's manager hands its task back while its workers' tasks are still open (no self-create)	pass		yes	
+R15c	@mgr ; T1 = backend by manager ; finish T1	manager	dispatch	reviewer	reviews T1	pass		models.py:1703: cross_model_verify is off by default, nothing refuses a same-model review	pass		yes	
+R3d	@mgr ; T1 = backend by manager ; T2 = reviewer after T1 by manager ; cancel T1 ; brief T2	reviewer	takeoff	T2		block	waits_for.not_ended	test_baseline_rows::test_C3_cancelled_dependency_does_not_release_review (a cancelled dependency never satisfies, task_store_core.py:1484-1488)	block	waits_for.not_ended	yes	
+R7c	T1 = manager scope docs/ ; start T1 ; T2 = backend by manager ; cancel T2 ; commit T1 empty	manager	debrief	T1		pass		test_baseline_rows::test_C7_cancelled_child_still_counts_for_decompose	pass		yes	

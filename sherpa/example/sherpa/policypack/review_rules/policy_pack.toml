@@ -1,0 +1,10 @@
+# review_rules: whoever wrote it does not review it (human 2026-10-30: a review discipline; skip this pack where people review their own work).
+name      = "review_rules"
+version   = "1"
+requires  = ["base", "classic_lifecycle"]
+after     = []
+conflicts = []
+group     = "classic_lifecycle_pack"
+writes    = []
+provides  = ["dispatch --reviews"]
+reads     = ["archive", "dispatch --to"]

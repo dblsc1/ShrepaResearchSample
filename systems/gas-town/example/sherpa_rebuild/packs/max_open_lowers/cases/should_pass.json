@@ -1,0 +1,5 @@
+{"about": "single line: the next task goes out once the last one is closed", "workflow": "PPOtest3SingleLine",
+ "steps": [
+  {"by": "human", "run": "dispatch", "options": {"to": "worker", "goal": "one", "scope": "src/"}},
+  {"do": "finish", "task": "$1"},
+  {"by": "human", "run": "dispatch", "options": {"to": "worker", "goal": "two", "scope": "src/"}, "expect": {"exit": 0}}]}

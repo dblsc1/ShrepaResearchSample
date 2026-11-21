@@ -1,0 +1,11 @@
+# classic_lifecycle: the one unit -- an upper dispatches one task card to one lower. Time points only, no rules.
+# @upper / @lower in flow.tsv's roles column: ppo fills in the seats that sit there in the custom lifecycle.
+name      = "classic_lifecycle"
+version   = "1"
+requires  = ["base"]
+after     = []
+conflicts = []
+group     = "classic_lifecycle"
+writes    = ["tasks/"]
+provides  = ["task_card", "archive", "dispatch --to", "dispatch --goal", "dispatch --scope", "dispatch --parent"]
+reads     = []

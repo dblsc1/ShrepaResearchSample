@@ -1,0 +1,7 @@
+rule	shared_rule	triage	faq	seat	flight	booking	refunds	n_named	清单「点名」	对不上
+R13	-							0	-	
+R14	-							0	-	
+R15	-							0	-	
+R16	-							0	-	
+R01-R06	write	b	b	b	b	b	b	0	booking、faq、flight、refunds、seat、triage	booking、faq、flight、refunds、seat、triage
+R07-R12	-	1	1	1	1	1	1	6	booking、faq、flight、refunds、seat、triage	

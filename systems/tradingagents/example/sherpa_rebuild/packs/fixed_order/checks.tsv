@@ -1,0 +1,3 @@
+command	check	stage	action	params	locked
+dispatch	fixed_order_declared_waits	general	block	-	no
+debrief	fixed_order_required_lowers	general	block	-	no

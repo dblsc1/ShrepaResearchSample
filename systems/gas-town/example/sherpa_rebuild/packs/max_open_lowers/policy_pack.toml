@@ -1,0 +1,11 @@
+# max_open_lowers: an upper has at most n tasks out that have not ended (n=1 is serial work).
+# n comes from the workflow file: [policy.max_open_lowers] params = "n=1". Without n it does nothing.
+name      = "max_open_lowers"
+version   = "1"
+requires  = ["base", "classic_lifecycle"]
+after     = []
+conflicts = []
+group     = "classic_lifecycle_pack"
+writes    = []
+provides  = []
+reads     = ["archive"]

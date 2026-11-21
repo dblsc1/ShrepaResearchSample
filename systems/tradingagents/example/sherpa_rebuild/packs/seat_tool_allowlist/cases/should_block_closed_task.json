@@ -1,0 +1,30 @@
+{
+ "about": "no tool calls on a closed task",
+ "workflow": "PPOtestToolGate",
+ "steps": [
+  {
+   "by": "human",
+   "run": "dispatch",
+   "options": {
+    "to": "worker",
+    "goal": "fix a",
+    "scope": "src/"
+   }
+  },
+  {
+   "do": "finish"
+  },
+  {
+   "by": "worker",
+   "run": "tool-call",
+   "options": {
+    "tool": "Read",
+    "input": "{\"file_path\": \"src/a.py\"}"
+   },
+   "expect": {
+    "exit": 1,
+    "red": "builtin.transition"
+   }
+  }
+ ]
+}

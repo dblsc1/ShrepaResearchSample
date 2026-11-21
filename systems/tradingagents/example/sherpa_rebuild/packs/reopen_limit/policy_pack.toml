@@ -1,0 +1,11 @@
+# reopen_limit: a seat gets at most n+1 rounds (dispatches plus reopens) from the same upper; n per seat, from the workflow.
+# [policy.reopen_limit] params = "reviewer=9;worker=4"   Seats not named are not limited. Counts live in reopens/<task>.
+name      = "reopen_limit"
+version   = "1"
+requires  = ["base", "classic_lifecycle"]
+after     = []
+conflicts = []
+group     = "classic_lifecycle_pack"
+writes    = ["reopens/"]
+provides  = ["reopen_count"]
+reads     = []

@@ -1,0 +1,6 @@
+# Built by `ppo build` from sherpa/policypack/. Do not edit: change a pack, then build.
+role	prefix	superior	card	pack
+human	HUM	-	PPOtest2CtoTeam/cards/human.md	PPOtest2CtoTeam
+cto	CTO	human	PPOtest2CtoTeam/cards/cto.md	PPOtest2CtoTeam
+worker	WORKER	cto	PPOtest2CtoTeam/cards/worker.md	PPOtest2CtoTeam
+reviewer	REVIEWER	cto	PPOtest2CtoTeam/cards/reviewer.md	PPOtest2CtoTeam

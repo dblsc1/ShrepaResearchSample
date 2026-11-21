@@ -1,0 +1,7 @@
+{"about": "the waiting task takes off once the task it waits for is closed",
+ "steps": [
+  {"by": "human", "run": "dispatch", "options": {"to": "worker", "goal": "step one", "scope": "src/"}},
+  {"by": "human", "run": "dispatch", "options": {"to": "worker", "goal": "step two", "scope": "src/", "waits_for": "$1"}, "expect": {"exit": 0}},
+  {"do": "finish", "task": "$1"},
+  {"by": "worker", "run": "brief", "task": "$2"},
+  {"by": "worker", "run": "takeoff", "task": "$2", "expect": {"exit": 0}}]}

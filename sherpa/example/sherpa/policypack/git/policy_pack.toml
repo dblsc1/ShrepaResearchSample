@@ -1,0 +1,10 @@
+# git: the code checkout as a fact; git rules for takeoff, landing, receipt; at init, the pre-commit hook and keeping sherpa/ out of the project's git status.
+name      = "git"
+version   = "1"
+requires  = ["base", "classic_lifecycle"]
+after     = []
+conflicts = []
+group     = "classic_lifecycle_pack"
+writes    = []
+provides  = ["git"]
+reads     = ["task_card"]

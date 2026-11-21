@@ -1,0 +1,8 @@
+# PPOtest2CtoTeam: a person hands a goal to a CTO; the CTO splits it for workers and has a reviewer check it.
+name      = "PPOtest2CtoTeam"
+version   = "1"
+requires  = ["base", "classic_lifecycle"]
+after     = []
+conflicts = []
+group     = "custom_lifecycle"
+writes    = []

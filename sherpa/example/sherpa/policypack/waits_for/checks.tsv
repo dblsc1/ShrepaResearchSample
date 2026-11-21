@@ -1,0 +1,3 @@
+command	check	stage	action	params	locked
+dispatch	waited_tasks_exist	general	block	-	no
+takeoff	waited_tasks_ended	general	block	ended=closed,cancelled	no

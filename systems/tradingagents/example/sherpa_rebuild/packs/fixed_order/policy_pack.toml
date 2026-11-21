@@ -1,0 +1,13 @@
+# fixed_order: hand-offs a workflow fixes, which no upper can leave out. Seats are named in the workflow's params:
+#   after.<seat>=<seat>,<seat>  a task to <seat> is dispatched only with --waits-for naming a task of each listed seat
+#   needs.<seat>=<seat>,<seat>  <seat> debriefs only with a closed task of each listed seat (a cancelled one does not count)
+# [policy.fixed_order] params = "after.bear=bull;needs.judge=bull,bear". Seats not named are not limited.
+name      = "fixed_order"
+version   = "1"
+requires  = ["base", "classic_lifecycle", "waits_for"]
+after     = []
+conflicts = []
+group     = "classic_lifecycle_pack"
+writes    = []
+provides  = []
+reads     = ["archive"]

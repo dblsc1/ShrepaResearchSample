@@ -1,0 +1,60 @@
+{
+ "about": "F18/R8: the (n+1)-th tool call is refused",
+ "workflow": "PPOtestToolGate",
+ "steps": [
+  {
+   "by": "human",
+   "run": "dispatch",
+   "options": {
+    "to": "worker",
+    "goal": "fix a",
+    "scope": "src/"
+   }
+  },
+  {
+   "by": "worker",
+   "run": "tool-call",
+   "options": {
+    "tool": "Read",
+    "input": "{\"file_path\": \"src/a.py\"}"
+   },
+   "expect": {
+    "exit": 0
+   }
+  },
+  {
+   "by": "worker",
+   "run": "tool-call",
+   "options": {
+    "tool": "Read",
+    "input": "{\"file_path\": \"src/a.py\"}"
+   },
+   "expect": {
+    "exit": 0
+   }
+  },
+  {
+   "by": "worker",
+   "run": "tool-call",
+   "options": {
+    "tool": "Read",
+    "input": "{\"file_path\": \"src/a.py\"}"
+   },
+   "expect": {
+    "exit": 0
+   }
+  },
+  {
+   "by": "worker",
+   "run": "tool-call",
+   "options": {
+    "tool": "Read",
+    "input": "{\"file_path\": \"src/a.py\"}"
+   },
+   "expect": {
+    "exit": 1,
+    "red": "tool_call_limit.reached"
+   }
+  }
+ ]
+}

@@ -1,0 +1,11 @@
+# tool_call_limit: a task's agent gets at most n tool calls; the (n+1)-th is refused.
+#   [policy.tool_call_limit] params = "worker=20"     Seats not named are not limited.
+name      = "tool_call_limit"
+version   = "1"
+requires  = ["base", "classic_lifecycle", "seat_tool_allowlist"]
+after     = []
+conflicts = []
+group     = "classic_lifecycle_pack"
+writes    = []
+provides  = []
+reads     = ["tool_ledger"]

@@ -1,0 +1,9 @@
+change	k	lines_added	from	to
+d	1	56	grid3-k0-m0	g5-k0-g1
+d	2	56	grid3-k0-m0	g5-k0-g2
+d	4	56	grid3-k0-m0	g5-k0-g4
+d	8	56	grid3-k0-m0	g5-k0-g8
+e	1	76	grid3-k0-m0	g5-k0-n1
+e	2	87	grid3-k0-m0	g5-k0-n2
+e	4	109	grid3-k0-m0	g5-k0-n4
+e	8	153	grid3-k0-m0	g5-k0-n8

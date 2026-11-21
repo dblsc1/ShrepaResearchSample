@@ -1,0 +1,8 @@
+# PPOtestBernstein: the Sherpa counterpart of Bernstein's default organization (pairing design, protocol section 12).
+name      = "PPOtestBernstein"
+version   = "1"
+requires  = ["base", "classic_lifecycle", "seat_write_limit", "must_decompose", "parallel_wait_all", "review_model_differs"]
+after     = []
+conflicts = []
+group     = "custom_lifecycle"
+writes    = []

@@ -1,0 +1,3 @@
+case	given	who	does	on	args	expect	rule	source
+S8-1	@open ; @reports ; @debate ; @plan ; @trade ; @risk3 ; CP = compliance_analyst after NE reviews TR by portfolio_manager ; finish CP ; commit PM empty	portfolio_manager	debrief	PM		pass		test_allowed_the_compliance_analyst_reviews_the_traders_proposal
+S8-2	@open ; @reports ; @debate ; @plan ; @trade ; @risk3 ; CP = compliance_analyst after NE by portfolio_manager ; start CP ; land CP	portfolio_manager	dispatch	compliance_analyst	after CP reviews CP	block	review_rules.author_is_reviewer	test_rejected_the_compliance_analyst_reviewing_a_proposal_it_wrote

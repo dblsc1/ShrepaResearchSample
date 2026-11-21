@@ -1,0 +1,67 @@
+# PPOtestGasTown (placeholder name): the Sherpa counterpart of Gas Town at k=0 extra polecats, written by
+# _capability/gastown_eq/gen_gastown.py.
+
+[[instance]]
+id        = "mayor"
+lifecycle = "classic_lifecycle"
+upper     = "human"
+lower     = "mayor"
+
+[[instance]]
+id        = "deacon"
+lifecycle = "classic_lifecycle"
+upper     = "mayor"
+lower     = "deacon"
+
+[[instance]]
+id        = "witness"
+lifecycle = "classic_lifecycle"
+upper     = "mayor"
+lower     = "witness"
+
+[[instance]]
+id        = "refinery"
+lifecycle = "classic_lifecycle"
+upper     = "mayor"
+lower     = "refinery"
+
+[[instance]]
+id        = "crew"
+lifecycle = "classic_lifecycle"
+upper     = "mayor"
+lower     = "crew"
+
+[[instance]]
+id        = "dog"
+lifecycle = "classic_lifecycle"
+upper     = "deacon"
+lower     = "dog"
+
+[[instance]]
+id        = "polecat_1"
+lifecycle = "classic_lifecycle"
+upper     = "mayor"
+lower     = "polecat_1"
+
+[seat.human]
+card = "cards/human.md"
+[seat.mayor]
+card = "cards/mayor.md"
+[seat.deacon]
+card = "cards/deacon.md"
+[seat.witness]
+card = "cards/witness.md"
+[seat.refinery]
+card = "cards/refinery.md"
+[seat.crew]
+card = "cards/crew.md"
+[seat.dog]
+card = "cards/dog.md"
+[seat.polecat_1]
+card = "cards/polecat.md"
+class = "polecat"
+
+# The polecat cap (Gas Town max_polecats): the mayor has at most n tasks out.
+[policy.max_open_lowers]
+only   = ["mayor"]
+params = "n=10"

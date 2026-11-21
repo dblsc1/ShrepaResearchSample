@@ -1,0 +1,209 @@
+diff --git a/backend/packages/harness/deerflow/config/subagents_config.py b/backend/packages/harness/deerflow/config/subagents_config.py
+index e6596938e..74aa65fc2 100644
+--- a/backend/packages/harness/deerflow/config/subagents_config.py
++++ b/backend/packages/harness/deerflow/config/subagents_config.py
+@@ -172,6 +172,7 @@ class CustomSubagentConfig(BaseModel):
+         ge=1,
+         description="Maximum execution time in seconds",
+     )
++    marks: dict[str, str] | None = Field(default=None, description="grid5 named rules: this role's word per mark line")
+ 
+     @field_validator("timeout_seconds", "max_turns", mode="before")
+     @classmethod
+diff --git a/backend/packages/harness/deerflow/subagents/builtins/bash_agent.py b/backend/packages/harness/deerflow/subagents/builtins/bash_agent.py
+index 9fa937101..85bab5cd2 100644
+--- a/backend/packages/harness/deerflow/subagents/builtins/bash_agent.py
++++ b/backend/packages/harness/deerflow/subagents/builtins/bash_agent.py
+@@ -47,4 +47,5 @@ You have access to the sandbox environment:
+     disallowed_tools=["task", "ask_clarification", "present_files"],
+     model="inherit",
+     max_turns=60,
++    marks={"n1": "fable", "n2": "lantern", "n3": "raven", "n4": "yarrow"},
+ )
+diff --git a/backend/packages/harness/deerflow/subagents/builtins/general_purpose.py b/backend/packages/harness/deerflow/subagents/builtins/general_purpose.py
+index a2bc2cad0..e87e279ff 100644
+--- a/backend/packages/harness/deerflow/subagents/builtins/general_purpose.py
++++ b/backend/packages/harness/deerflow/subagents/builtins/general_purpose.py
+@@ -67,4 +67,5 @@ You have access to the same sandbox environment as the parent agent:
+     disallowed_tools=["task", "ask_clarification", "present_files"],  # Prevent nesting and clarification
+     model="inherit",
+     max_turns=150,
++    marks={"n1": "ember", "n2": "kettle", "n3": "quartz", "n4": "willow"},
+ )
+diff --git a/backend/packages/harness/deerflow/subagents/config.py b/backend/packages/harness/deerflow/subagents/config.py
+index 9fffa1acd..5351d76f3 100644
+--- a/backend/packages/harness/deerflow/subagents/config.py
++++ b/backend/packages/harness/deerflow/subagents/config.py
+@@ -52,6 +52,7 @@ class SubagentConfig:
+     thinking_enabled: bool | None = None
+     reasoning_effort: str | None = None
+     max_turns: int = 50
++    marks: dict[str, str] | None = None
+     timeout_seconds: int = 900
+     prompt_overlay: PromptOverlay = field(default_factory=PromptOverlay)
+ 
+diff --git a/backend/packages/harness/deerflow/subagents/marks.py b/backend/packages/harness/deerflow/subagents/marks.py
+new file mode 100644
+index 000000000..d83dbe579
+--- /dev/null
++++ b/backend/packages/harness/deerflow/subagents/marks.py
+@@ -0,0 +1,25 @@
++"""grid5 form rules: mark lines at the end of a handed text, checked by the receiver.
++Family N, rules n1..n4."""
++import re
++
++MARK = re.compile(r"^([gn])(\d+): (.*)$")
++LEAD_MARKS = {"n1": "amber", "n2": "garnet", "n3": "meadow", "n4": "saffron"}
++N_RULES = 4
++
++
++def read_marks(text):
++    found = {}
++    for line in (text or "").splitlines():
++        hit = MARK.match(line.strip())
++        if hit:
++            found[hit.group(1) + hit.group(2)] = hit.group(3)
++    return found
++
++
++def check_marks(text, giver, words):
++    """words: the giver's own passwords (its subagent config `marks`, or LEAD_MARKS)."""
++    marks = read_marks(text)
++    for i in range(1, N_RULES + 1):
++        if marks.get(f"n{i}") != (words or {}).get(f"n{i}"):
++            return f"form rule n{i}: {giver} handed {marks.get(f'n{i}')!r}, not its own word"
++    return None
+diff --git a/backend/packages/harness/deerflow/subagents/registry.py b/backend/packages/harness/deerflow/subagents/registry.py
+index 049f03f8c..b8af5dfb2 100644
+--- a/backend/packages/harness/deerflow/subagents/registry.py
++++ b/backend/packages/harness/deerflow/subagents/registry.py
+@@ -52,6 +52,7 @@ def _build_custom_subagent_config(name: str, *, app_config: Any | None = None) -
+         thinking_enabled=custom.thinking_enabled,
+         reasoning_effort=custom.reasoning_effort,
+         max_turns=custom.max_turns,
++        marks=custom.marks,
+         timeout_seconds=custom.timeout_seconds,
+     )
+ 
+diff --git a/backend/packages/harness/deerflow/tools/builtins/task_tool.py b/backend/packages/harness/deerflow/tools/builtins/task_tool.py
+index 41cea9019..906e9fc6b 100644
+--- a/backend/packages/harness/deerflow/tools/builtins/task_tool.py
++++ b/backend/packages/harness/deerflow/tools/builtins/task_tool.py
+@@ -35,6 +35,7 @@ from deerflow.sandbox.security import LOCAL_BASH_SUBAGENT_DISABLED_MESSAGE, is_h
+ from deerflow.subagents import SubagentExecutor, get_available_subagent_names, get_subagent_config
+ from deerflow.subagents.acceptance_checks import check_acceptance_criteria, render_acceptance_section
+ from deerflow.subagents.capacity import SubagentExecutionCapacity
++from deerflow.subagents.marks import LEAD_MARKS, check_marks
+ from deerflow.subagents.config import resolve_subagent_model_name
+ from deerflow.subagents.context_snapshot import ParentContextSnapshot
+ from deerflow.subagents.executor import (
+@@ -972,6 +973,10 @@ async def task_tool(
+             error=preflight_error,
+         )
+     config = preflight_config
++    # grid5 form rules: the subagent receiving the task checks the marks of the task text
++    marks_error = check_marks(prompt, "lead", LEAD_MARKS)
++    if marks_error is not None:
++        return result_command(tool_call_id=tool_call_id, status="failed", error=marks_error)
+     # Rejected delegations must not serialize the retained history. Capture
+     # after delegation validation, before child setup (including tool loading).
+     context_snapshot = ParentContextSnapshot.from_state(runtime.state) if context_mode == "snapshot" and runtime is not None else None
+@@ -1268,6 +1273,10 @@ async def task_tool(
+                 )
+                 logger.info(f"[trace={trace_id}] Task {tool_call_id} completed after {poll_count} polls")
+                 cleanup_background_task(execution_id)
++                # grid5 form rules: the lead receiving the hand-back checks the marks of the result
++                marks_error = check_marks(result.result or "", subagent_type, config.marks)
++                if marks_error is not None:
++                    return result_command(tool_call_id=tool_call_id, status="failed", error=marks_error)
+                 # stop_reason carries a guardrail cap (token_capped / turn_capped)
+                 # when the run was ended early but still produced a final answer
+                 # — the work survives on result_brief like a clean success.
+diff --git a/config.yaml b/config.yaml
+index 93c68a8ed..795e0e06e 100644
+--- a/config.yaml
++++ b/config.yaml
+@@ -2085,6 +2085,11 @@ subagents:
+       tools:
+           - web_search
+           - web_fetch
++      marks:
++        n1: basil
++        n2: harbor
++        n3: nectar
++        n4: thistle
+     analyst:
+       description: "Reasons over collected findings: cross-checks, compares and synthesizes. Uses no tools."
+       system_prompt: |
+@@ -2092,6 +2097,11 @@ subagents:
+           Cross-check, compare and synthesize the findings you are given. Do not invent data.
+           Output a Markdown analysis.
+       tools: []
++      marks:
++        n1: cedar
++        n2: indigo
++        n3: orchid
++        n4: umber
+     coder:
+       description: "Runs Python or shell commands for calculations and data processing."
+       system_prompt: |
+@@ -2102,6 +2112,11 @@ subagents:
+           - bash
+           - read_file
+           - write_file
++      marks:
++        n1: delta
++        n2: jasper
++        n3: pepper
++        n4: velvet
+     researcher_2:
+       description: "Searches the web and reads pages to collect information for one research step."
+       system_prompt: |
+@@ -2111,6 +2126,11 @@ subagents:
+       tools:
+           - web_search
+           - web_fetch
++      marks:
++        n1: basil
++        n2: harbor
++        n3: nectar
++        n4: thistle
+     researcher_3:
+       description: "Searches the web and reads pages to collect information for one research step."
+       system_prompt: |
+@@ -2120,6 +2140,11 @@ subagents:
+       tools:
+           - web_search
+           - web_fetch
++      marks:
++        n1: basil
++        n2: harbor
++        n3: nectar
++        n4: thistle
+     researcher_4:
+       description: "Searches the web and reads pages to collect information for one research step."
+       system_prompt: |
+@@ -2129,6 +2154,11 @@ subagents:
+       tools:
+           - web_search
+           - web_fetch
++      marks:
++        n1: basil
++        n2: harbor
++        n3: nectar
++        n4: thistle
+     researcher_5:
+       description: "Searches the web and reads pages to collect information for one research step."
+       system_prompt: |
+@@ -2138,6 +2168,11 @@ subagents:
+       tools:
+           - web_search
+           - web_fetch
++      marks:
++        n1: basil
++        n2: harbor
++        n3: nectar
++        n4: thistle
+ 
+ # subagents:
+ #   # Default timeout (seconds) for built-in subagents (default: 1800 = 30 min).

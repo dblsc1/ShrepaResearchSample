@@ -1,0 +1,69 @@
+diff --git a/backend/packages/harness/deerflow/subagents/marks.py b/backend/packages/harness/deerflow/subagents/marks.py
+new file mode 100644
+index 000000000..32ad7544f
+--- /dev/null
++++ b/backend/packages/harness/deerflow/subagents/marks.py
+@@ -0,0 +1,29 @@
++"""grid5 form rules: mark lines at the end of a handed text, checked by the receiver.
++Family G, rules g1..g2."""
++import re
++
++MARK = re.compile(r"^([gn])(\d+): (.*)$")
++G_RULES = 2
++
++
++def read_marks(text):
++    found = {}
++    for line in (text or "").splitlines():
++        hit = MARK.match(line.strip())
++        if hit:
++            found[hit.group(1) + hit.group(2)] = hit.group(3)
++    return found
++
++
++def write_marks(giver):
++    """Mark lines a code giver writes: its own name on every rule."""
++    return "\n".join(f"g{i}: {giver}" for i in range(1, G_RULES + 1))
++
++
++def check_marks(text, giver):
++    """The receiver checks every mark line names the one who really handed the text over."""
++    marks = read_marks(text)
++    for i in range(1, G_RULES + 1):
++        if marks.get(f"g{i}") != giver:
++            return f"form rule g{i}: handed by {giver}, signed {marks.get(f'g{i}')!r}"
++    return None
+diff --git a/backend/packages/harness/deerflow/tools/builtins/task_tool.py b/backend/packages/harness/deerflow/tools/builtins/task_tool.py
+index 41cea9019..d11246411 100644
+--- a/backend/packages/harness/deerflow/tools/builtins/task_tool.py
++++ b/backend/packages/harness/deerflow/tools/builtins/task_tool.py
+@@ -35,6 +35,7 @@ from deerflow.sandbox.security import LOCAL_BASH_SUBAGENT_DISABLED_MESSAGE, is_h
+ from deerflow.subagents import SubagentExecutor, get_available_subagent_names, get_subagent_config
+ from deerflow.subagents.acceptance_checks import check_acceptance_criteria, render_acceptance_section
+ from deerflow.subagents.capacity import SubagentExecutionCapacity
++from deerflow.subagents.marks import check_marks
+ from deerflow.subagents.config import resolve_subagent_model_name
+ from deerflow.subagents.context_snapshot import ParentContextSnapshot
+ from deerflow.subagents.executor import (
+@@ -972,6 +973,10 @@ async def task_tool(
+             error=preflight_error,
+         )
+     config = preflight_config
++    # grid5 form rules: the subagent receiving the task checks the marks of the task text
++    marks_error = check_marks(prompt, "lead")
++    if marks_error is not None:
++        return result_command(tool_call_id=tool_call_id, status="failed", error=marks_error)
+     # Rejected delegations must not serialize the retained history. Capture
+     # after delegation validation, before child setup (including tool loading).
+     context_snapshot = ParentContextSnapshot.from_state(runtime.state) if context_mode == "snapshot" and runtime is not None else None
+@@ -1268,6 +1273,10 @@ async def task_tool(
+                 )
+                 logger.info(f"[trace={trace_id}] Task {tool_call_id} completed after {poll_count} polls")
+                 cleanup_background_task(execution_id)
++                # grid5 form rules: the lead receiving the hand-back checks the marks of the result
++                marks_error = check_marks(result.result or "", subagent_type)
++                if marks_error is not None:
++                    return result_command(tool_call_id=tool_call_id, status="failed", error=marks_error)
+                 # stop_reason carries a guardrail cap (token_capped / turn_capped)
+                 # when the run was ended early but still produced a final answer
+                 # — the work survives on result_brief like a clean success.

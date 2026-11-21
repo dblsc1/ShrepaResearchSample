@@ -1,0 +1,17 @@
+change	k	lines_added	from	to
+a	1	97	g5-k0-g1	g5-k1-g1
+a	2	193	g5-k0-g2	g5-k2-g2
+a	4	385	g5-k0-g4	g5-k4-g4
+a	8	769	g5-k0-g8	g5-k8-g8
+b	1	98	g5-k0-n1	g5-k1-n1
+b	2	197	g5-k0-n2	g5-k2-n2
+b	4	401	g5-k0-n4	g5-k4-n4
+b	8	833	g5-k0-n8	g5-k8-n8
+d	1	51	grid3-k1-m0	g5-k1-g1
+d	2	53	grid3-k2-m0	g5-k2-g2
+d	4	57	grid3-k4-m0	g5-k4-g4
+d	8	65	grid3-k8-m0	g5-k8-g8
+e	1	65	grid3-k1-m0	g5-k1-n1
+e	2	84	grid3-k2-m0	g5-k2-n2
+e	4	128	grid3-k4-m0	g5-k4-n4
+e	8	240	grid3-k8-m0	g5-k8-n8

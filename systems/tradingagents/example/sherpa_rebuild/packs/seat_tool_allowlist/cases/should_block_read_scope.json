@@ -1,0 +1,27 @@
+{
+ "about": "F17: the worker reads outside its seat's data (/etc/hostname)",
+ "workflow": "PPOtestToolGate",
+ "steps": [
+  {
+   "by": "human",
+   "run": "dispatch",
+   "options": {
+    "to": "worker",
+    "goal": "fix a",
+    "scope": "src/"
+   }
+  },
+  {
+   "by": "worker",
+   "run": "tool-call",
+   "options": {
+    "tool": "Read",
+    "input": "{\"file_path\": \"/etc/hostname\"}"
+   },
+   "expect": {
+    "exit": 1,
+    "red": "seat_tool_allowlist.input_not_allowed"
+   }
+  }
+ ]
+}

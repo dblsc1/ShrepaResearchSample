@@ -1,0 +1,6 @@
+# The unit's task card (the record of one unit), the list of all tasks, and dispatch's body.
+name	kind	impl	locked
+task_card	sampler	task_card.py	yes
+archive	sampler	archive.py	yes
+dispatch	command	dispatch.py	no
+lower_seat_pairing	check	lower_seat_pairing.py	yes

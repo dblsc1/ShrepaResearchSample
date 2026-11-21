@@ -1,0 +1,4 @@
+{"about": "single line: a second task while the first is out is red", "workflow": "PPOtest3SingleLine",
+ "steps": [
+  {"by": "human", "run": "dispatch", "options": {"to": "worker", "goal": "one", "scope": "src/"}},
+  {"by": "human", "run": "dispatch", "options": {"to": "worker2", "goal": "two", "scope": "src/"}, "expect": {"exit": 1, "red": "max_open_lowers.limit_reached"}}]}

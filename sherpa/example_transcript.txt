@@ -1,0 +1,279 @@
+$ ppo init --packs base,classic_lifecycle,audit,git,task_card_check,worktree,waits_for,parallel_wait_all,write_scope,review_rules,PPOtest2CtoTeam  exit 0
+built _sherpa_minimal/example/sherpa/policy/policy20261121_00.lock
+
+$ sherpa init        [HUM-00]  exit 0
+sherpa init  by HUM-00  ->  ok
+  pass caller_identified
+  pass transition_is_in_flow_table
+  skip one_active_writer_per_branch   no task branch in this command
+  done workspace _sherpa_minimal/example/sherpa founded by HUM-00
+  done wrote config.toml
+  done wrote .gitignore
+  done install_pre_commit_hook: pre-commit hook _sherpa_minimal/example/.git/hooks/pre-commit: commits on task/<id> branches run sherpa landing
+  done exclude_sherpa_folder: /sherpa/ added to _sherpa_minimal/example/.git/info/exclude: the project's git status leaves sherpa/ out
+  done committed 141ee0c
+  next: dispatch
+
+$ sherpa dispatch --to CTO-01 --goal work for CTO-01 --scope src/        [HUM-00]  exit 0
+sherpa dispatch  T-261121-1  by HUM-00  ->  ok
+  pass task_card_complete
+  pass waited_tasks_exist
+  skip author_is_not_reviewer   not a review task (no --reviews)
+  pass lower_seat_pairing
+  pass caller_identified
+  pass transition_is_in_flow_table
+  skip one_active_writer_per_branch   no task branch in this command
+  done wrote tasks/T-261121-1/task.json
+  done T-261121-1: - -> dispatched
+  done prepare_worktree: worktree sherpa/worktrees/T-261121-1 on task/T-261121-1 (new, from main): work there
+  done committed 6aabccb
+  next: cancel
+
+$ sherpa brief --task T-261121-1        [CTO-01]  exit 0
+sherpa brief  T-261121-1  by CTO-01  ->  ok
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done T-261121-1: dispatched -> briefed
+  done committed a094255
+  next: takeoff, cancel
+
+$ sherpa takeoff --task T-261121-1        [CTO-01]  exit 0
+sherpa takeoff  T-261121-1  by CTO-01  ->  ok
+  pass git_rules
+  pass waited_tasks_ended
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done T-261121-1: briefed -> onAir
+  done prepare_worktree: worktree sherpa/worktrees/T-261121-1 on task/T-261121-1: work there
+  done committed af1406e
+  next: landing, cancel
+
+$ sherpa dispatch --to WORKER-01 --goal work for WORKER-01 --scope src/        [CTO-01]  exit 0
+sherpa dispatch  T-261121-2  by CTO-01  ->  ok
+  pass task_card_complete
+  pass waited_tasks_exist
+  skip author_is_not_reviewer   not a review task (no --reviews)
+  pass lower_seat_pairing
+  pass caller_identified
+  pass transition_is_in_flow_table
+  skip one_active_writer_per_branch   no task branch in this command
+  done wrote tasks/T-261121-2/task.json
+  done T-261121-2: - -> dispatched
+  done prepare_worktree: worktree sherpa/worktrees/T-261121-2 on task/T-261121-2 (new, from main): work there
+  done committed f892d54
+  next: brief, cancel
+
+$ sherpa dispatch --to WORKER-01 --goal work for WORKER-01 --scope src/ --reviews T-261121-2 --waits-for T-261121-2        [CTO-01]  exit 1
+sherpa dispatch  by CTO-01  ->  BLOCKED
+  pass task_card_complete
+  pass waited_tasks_exist
+  RED  author_is_not_reviewer review_rules.author_is_reviewer  WORKER-01 did T-261121-2 and would review it
+       -> send the review to someone else
+  pass lower_seat_pairing
+  pass caller_identified
+  pass transition_is_in_flow_table
+  skip one_active_writer_per_branch   no task branch in this command
+  done committed 6e70d2d
+  next: dispatch
+
+$ sherpa dispatch --to REVIEWER-01 --goal work for REVIEWER-01 --scope src/ --reviews T-261121-2 --waits-for T-261121-2        [CTO-01]  exit 0
+sherpa dispatch  T-261121-3  by CTO-01  ->  ok
+  pass task_card_complete
+  pass waited_tasks_exist
+  pass author_is_not_reviewer
+  pass lower_seat_pairing
+  pass caller_identified
+  pass transition_is_in_flow_table
+  skip one_active_writer_per_branch   no task branch in this command
+  done wrote tasks/T-261121-3/task.json
+  done T-261121-3: - -> dispatched
+  done prepare_worktree: worktree sherpa/worktrees/T-261121-3 on task/T-261121-3 (new, from main): work there
+  done committed 59e2637
+  next: brief, cancel
+
+$ sherpa dispatch --to WORKER-01 --goal work for WORKER-01 --scope src/        [HUM-00]  exit 1
+sherpa dispatch  by HUM-00  ->  BLOCKED
+  pass task_card_complete
+  pass waited_tasks_exist
+  skip author_is_not_reviewer   not a review task (no --reviews)
+  RED  lower_seat_pairing     classic_lifecycle.not_your_lower  human may not dispatch to WORKER-01
+       -> dispatch to a license of your lower seat (CTO-<n>)
+  pass caller_identified
+  pass transition_is_in_flow_table
+  skip one_active_writer_per_branch   no task branch in this command
+  done committed 4d86ff1
+  next: dispatch
+
+$ sherpa brief --task T-261121-3        [REVIEWER-01]  exit 0
+sherpa brief  T-261121-3  by REVIEWER-01  ->  ok
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done T-261121-3: dispatched -> briefed
+  done committed f876eac
+  next: takeoff
+
+$ sherpa takeoff --task T-261121-3        [REVIEWER-01]  exit 1
+sherpa takeoff  T-261121-3  by REVIEWER-01  ->  BLOCKED
+  pass git_rules
+  RED  waited_tasks_ended     waits_for.not_ended  T-261121-3 waits for T-261121-2, not ended yet
+       -> take off after those tasks are closed (`sherpa next` shows when)
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done committed bd6d261
+  next: takeoff
+
+$ sherpa brief --task T-261121-2        [WORKER-01]  exit 0
+sherpa brief  T-261121-2  by WORKER-01  ->  ok
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done T-261121-2: dispatched -> briefed
+  done committed 9d0045a
+  next: takeoff
+
+$ sherpa takeoff --task T-261121-2        [WORKER-01]  exit 0
+sherpa takeoff  T-261121-2  by WORKER-01  ->  ok
+  pass git_rules
+  pass waited_tasks_ended
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done T-261121-2: briefed -> onAir
+  done prepare_worktree: worktree sherpa/worktrees/T-261121-2 on task/T-261121-2: work there
+  done committed 5aa0d2b
+  next: landing
+
+$ git commit docs/note.md  (the hook runs sherpa landing --task T-261121-2)        [WORKER-01]  exit 1
+sherpa landing  T-261121-2  by WORKER-01  ->  BLOCKED
+  pass git_rules
+  RED  write_scope            write_scope.staged_outside_writable  staged outside src/: docs/note.md
+       -> git restore --staged docs/note.md, or ask CTO-01 to widen the scope
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done committed e671558
+  next: landing
+
+$ git commit src/T-261121-2.py  (the hook runs sherpa landing --task T-261121-2)        [WORKER-01]  exit 0
+sherpa landing  T-261121-2  by WORKER-01  ->  ok
+  pass git_rules
+  pass write_scope
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done T-261121-2: onAir -> landed
+  done committed 902d43a
+  next: landing, debrief
+
+$ sherpa debrief --task T-261121-2        [WORKER-01]  exit 0
+sherpa debrief  T-261121-2  by WORKER-01  ->  ok
+  pass dispatched_tasks_ended
+  pass write_scope
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done T-261121-2: landed -> debriefed
+  done committed 9f416db
+  next: landing
+
+$ sherpa receipt --task T-261121-2        [CTO-01]  exit 0
+sherpa receipt  T-261121-2  by CTO-01  ->  ok
+  pass git_rules
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done T-261121-2: debriefed -> closed
+  done remove_worktree: removed worktree sherpa/worktrees/T-261121-2 (branch task/T-261121-2 kept)
+  done tell_waiting_tasks: may take off now: T-261121-3 (REVIEWER-01) (no transport configured)
+  done committed 92ff408
+
+$ git commit src/T-261121-1.py  (the hook runs sherpa landing --task T-261121-1)        [CTO-01]  exit 0
+sherpa landing  T-261121-1  by CTO-01  ->  ok
+  pass git_rules
+  pass write_scope
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done T-261121-1: onAir -> landed
+  done committed ea35b71
+  next: landing, debrief, cancel
+
+$ sherpa debrief --task T-261121-1        [CTO-01]  exit 1
+sherpa debrief  T-261121-1  by CTO-01  ->  BLOCKED
+  RED  dispatched_tasks_ended parallel_wait_all.tasks_not_ended  CTO-01 dispatched T-261121-3, not ended yet
+       -> take receipt of them (or cancel them), then debrief
+  pass write_scope
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done committed b607d32
+  next: landing, debrief, cancel
+
+$ sherpa takeoff --task T-261121-3        [REVIEWER-01]  exit 0
+sherpa takeoff  T-261121-3  by REVIEWER-01  ->  ok
+  pass git_rules
+  pass waited_tasks_ended
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done T-261121-3: briefed -> onAir
+  done prepare_worktree: worktree sherpa/worktrees/T-261121-3 on task/T-261121-3: work there
+  done committed 844607e
+  next: landing
+
+$ git commit src/T-261121-3.py  (the hook runs sherpa landing --task T-261121-3)        [REVIEWER-01]  exit 0
+sherpa landing  T-261121-3  by REVIEWER-01  ->  ok
+  pass git_rules
+  pass write_scope
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done T-261121-3: onAir -> landed
+  done committed 281f3aa
+  next: landing, debrief
+
+$ sherpa debrief --task T-261121-3        [REVIEWER-01]  exit 0
+sherpa debrief  T-261121-3  by REVIEWER-01  ->  ok
+  pass dispatched_tasks_ended
+  pass write_scope
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done T-261121-3: landed -> debriefed
+  done committed aaf45f6
+  next: landing
+
+$ sherpa receipt --task T-261121-3        [CTO-01]  exit 0
+sherpa receipt  T-261121-3  by CTO-01  ->  ok
+  pass git_rules
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done T-261121-3: debriefed -> closed
+  done remove_worktree: removed worktree sherpa/worktrees/T-261121-3 (branch task/T-261121-3 kept)
+  done committed 4cbf6b1
+
+$ sherpa debrief --task T-261121-1        [CTO-01]  exit 0
+sherpa debrief  T-261121-1  by CTO-01  ->  ok
+  pass dispatched_tasks_ended
+  pass write_scope
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done T-261121-1: landed -> debriefed
+  done committed 2c32286
+  next: landing, receipt, reopen, cancel
+
+$ sherpa receipt --task T-261121-1        [HUM-00]  exit 0
+sherpa receipt  T-261121-1  by HUM-00  ->  ok
+  pass git_rules
+  pass caller_identified
+  pass transition_is_in_flow_table
+  pass one_active_writer_per_branch
+  done T-261121-1: debriefed -> closed
+  done remove_worktree: removed worktree sherpa/worktrees/T-261121-1 (branch task/T-261121-1 kept)
+  done committed bb0b108

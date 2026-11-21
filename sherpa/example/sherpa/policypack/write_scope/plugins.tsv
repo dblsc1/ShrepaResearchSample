@@ -1,0 +1,3 @@
+name	kind	impl	locked
+write_scope	check	write_scope.py	no
+one_active_writer_per_branch	check	one_active_writer_per_branch.py	yes

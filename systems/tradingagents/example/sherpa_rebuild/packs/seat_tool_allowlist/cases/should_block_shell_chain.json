@@ -1,0 +1,27 @@
+{
+ "about": "F19: a given prefix hiding a second command",
+ "workflow": "PPOtestToolGate",
+ "steps": [
+  {
+   "by": "human",
+   "run": "dispatch",
+   "options": {
+    "to": "worker",
+    "goal": "fix a",
+    "scope": "src/"
+   }
+  },
+  {
+   "by": "worker",
+   "run": "tool-call",
+   "options": {
+    "tool": "Bash",
+    "input": "{\"command\": \"git status; rm -rf src\"}"
+   },
+   "expect": {
+    "exit": 1,
+    "red": "seat_tool_allowlist.input_not_allowed"
+   }
+  }
+ ]
+}

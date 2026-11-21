@@ -1,0 +1,8 @@
+# PPOtestDeerflow2: Sherpa counterpart of deer-flow for grid3 (placeholder name).
+name      = "PPOtestDeerflow2"
+version   = "1"
+requires  = ["base", "classic_lifecycle", "seat_tool_allowlist", "tool_call_limit"]
+after     = []
+conflicts = []
+group     = "custom_lifecycle"
+writes    = []

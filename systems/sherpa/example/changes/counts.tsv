@@ -1,0 +1,17 @@
+change	k	lines_added	from	to
+a	1	1	g5n-k0-g1	g5n-k1-g1
+a	2	1	g5n-k0-g2	g5n-k2-g2
+a	4	1	g5n-k0-g4	g5n-k4-g4
+a	8	1	g5n-k0-g8	g5n-k8-g8
+b	1	1	g5n-k0-n1	g5n-k1-n1
+b	2	1	g5n-k0-n2	g5n-k2-n2
+b	4	1	g5n-k0-n4	g5n-k4-n4
+b	8	1	g5n-k0-n8	g5n-k8-n8
+d	1	132	grid3n-k1-m0	g5n-k1-g1
+d	2	132	grid3n-k2-m0	g5n-k2-g2
+d	4	132	grid3n-k4-m0	g5n-k4-g4
+d	8	132	grid3n-k8-m0	g5n-k8-g8
+e	1	146	grid3n-k1-m0	g5n-k1-n1
+e	2	146	grid3n-k2-m0	g5n-k2-n2
+e	4	146	grid3n-k4-m0	g5n-k4-n4
+e	8	146	grid3n-k8-m0	g5n-k8-n8

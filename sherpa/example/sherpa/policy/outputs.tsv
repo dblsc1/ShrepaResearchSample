@@ -1,0 +1,9 @@
+# Built by `ppo build` from sherpa/policypack/. Do not edit: change a pack, then build.
+event	output	roles	params	locked	pack
+init.passed	install_pre_commit_hook	*	-	no	git
+init.passed	exclude_sherpa_folder	*	-	no	git
+dispatch.passed	prepare_worktree	*	-	no	worktree
+takeoff.passed	prepare_worktree	*	-	no	worktree
+receipt.passed	remove_worktree	*	-	no	worktree
+receipt.passed	tell_waiting_tasks	*	ended=closed,cancelled	no	waits_for
+cancel-confirm.passed	tell_waiting_tasks	*	ended=closed,cancelled	no	waits_for

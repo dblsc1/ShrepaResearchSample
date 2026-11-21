@@ -1,0 +1,10 @@
+# write_scope: a worker changes only the paths on its card; one active writer per branch (human 2026-10-30: branches are a write-scope matter).
+name      = "write_scope"
+version   = "1"
+requires  = ["base", "classic_lifecycle", "task_card_check", "git"]
+after     = []
+conflicts = []
+group     = "classic_lifecycle_pack"
+writes    = []
+provides  = []
+reads     = ["task_card", "git", "archive"]

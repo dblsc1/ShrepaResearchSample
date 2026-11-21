@@ -1,0 +1,67 @@
+# PPOtestDeerflow1 (placeholder name): Sherpa counterpart of deer-flow 1.x for grid3,
+# written by deerflow/tools/gen_eq.py
+
+[[instance]]
+id        = "coordinator"
+lifecycle = "classic_lifecycle"
+upper     = "human"
+lower     = "coordinator"
+
+[[instance]]
+id        = "planner"
+lifecycle = "classic_lifecycle"
+upper     = "human"
+lower     = "planner"
+
+[[instance]]
+id        = "reporter"
+lifecycle = "classic_lifecycle"
+upper     = "human"
+lower     = "reporter"
+
+[[instance]]
+id        = "research_team"
+lifecycle = "classic_lifecycle"
+upper     = "human"
+lower     = "research_team"
+
+[[instance]]
+id        = "researcher"
+lifecycle = "classic_lifecycle"
+upper     = "research_team"
+lower     = "researcher"
+
+[[instance]]
+id        = "analyst"
+lifecycle = "classic_lifecycle"
+upper     = "research_team"
+lower     = "analyst"
+
+[[instance]]
+id        = "coder"
+lifecycle = "classic_lifecycle"
+upper     = "research_team"
+lower     = "coder"
+
+[seat.human]
+card = "cards/human.md"
+[seat.coordinator]
+card = "cards/coordinator.md"
+[seat.planner]
+card = "cards/planner.md"
+[seat.reporter]
+card = "cards/reporter.md"
+[seat.research_team]
+card = "cards/research_team.md"
+[seat.researcher]
+card = "cards/researcher_role.md"
+class = "researcher_role"
+[seat.analyst]
+card = "cards/analyst_role.md"
+class = "analyst_role"
+[seat.coder]
+card = "cards/coder_role.md"
+class = "coder_role"
+
+[policy.seat_tool_allowlist]
+params = "researcher_role=web_search,crawl_tool;analyst_role=-;coder_role=python_repl_tool"

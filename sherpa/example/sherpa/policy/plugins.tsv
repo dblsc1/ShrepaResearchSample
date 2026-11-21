@@ -1,0 +1,22 @@
+# Built by `ppo build` from sherpa/policypack/. Do not edit: change a pack, then build.
+name	kind	impl	locked	pack
+init	command	base/init.py	yes	base
+task_card	sampler	classic_lifecycle/task_card.py	yes	classic_lifecycle
+archive	sampler	classic_lifecycle/archive.py	yes	classic_lifecycle
+dispatch	command	classic_lifecycle/dispatch.py	no	classic_lifecycle
+lower_seat_pairing	check	classic_lifecycle/lower_seat_pairing.py	yes	classic_lifecycle
+audit_git	audit_writer	audit/audit_git.py	yes	audit
+git	sampler	git/git.py	yes	git
+git_rules	check	git/git_rules.py	no	git
+install_pre_commit_hook	output	git/install_pre_commit_hook.py	no	git
+exclude_sherpa_folder	output	git/exclude_sherpa_folder.py	no	git
+task_card_complete	check	task_card_check/task_card_complete.py	no	task_card_check
+prepare_worktree	output	worktree/prepare_worktree.py	no	worktree
+remove_worktree	output	worktree/remove_worktree.py	no	worktree
+waited_tasks_exist	check	waits_for/waited_tasks_exist.py	no	waits_for
+waited_tasks_ended	check	waits_for/waited_tasks_ended.py	no	waits_for
+tell_waiting_tasks	output	waits_for/tell_waiting_tasks.py	no	waits_for
+dispatched_tasks_ended	check	parallel_wait_all/dispatched_tasks_ended.py	no	parallel_wait_all
+write_scope	check	write_scope/write_scope.py	no	write_scope
+one_active_writer_per_branch	check	write_scope/one_active_writer_per_branch.py	yes	write_scope
+author_is_not_reviewer	check	review_rules/author_is_not_reviewer.py	yes	review_rules

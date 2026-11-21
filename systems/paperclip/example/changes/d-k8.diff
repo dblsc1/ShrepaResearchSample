@@ -1,0 +1,82 @@
+diff --git a/server/src/routes/issues.ts b/server/src/routes/issues.ts
+index c4fc7b77e1..58212a94fd 100644
+--- a/server/src/routes/issues.ts
++++ b/server/src/routes/issues.ts
+@@ -1,4 +1,5 @@
+ import { assertAgentInteraction } from "../services/agent-interaction-policy.js";
++import { assertGenericMarkers } from "../services/issue-generic-marker-rules.js";
+ import { assertQueuedCommentInteractionDelivery, recheckQueuedCommentInteractionDelivery } from "../services/agent-interaction-delivery.js";
+ import { listStalledDependencies } from "../services/recovery/blocker-stall-wakeups.js";
+ import { confirmMcpAttachmentCleanup, recordMcpAttachmentCleanup, type McpAttachmentCleanup } from "../services/public-mcp/upload-cleanup.js";
+@@ -13320,6 +13321,8 @@ export function issueRoutes(
+       ) {
+         await assertCanAssignTasks(req, companyId, createAssignmentScope);
+       }
++      await assertGenericMarkers(db, { actorAgentId: req.actor.type === "agent" ? req.actor.agentId : null,
++        toAgentId: createBody.assigneeAgentId, text: createBody.description });
+       await assertIssueEnvironmentSelection(
+         companyId,
+         createBody.executionWorkspaceSettings?.environmentId,
+@@ -13719,6 +13722,8 @@ export function issueRoutes(
+       ) {
+         await assertCanAssignTasks(req, parent.companyId, childAssignmentScope);
+       }
++      await assertGenericMarkers(db, { actorAgentId: req.actor.type === "agent" ? req.actor.agentId : null,
++        toAgentId: createBody.assigneeAgentId, text: createBody.description });
+       await assertIssueEnvironmentSelection(
+         parent.companyId,
+         createBody.executionWorkspaceSettings?.environmentId,
+@@ -15231,6 +15236,11 @@ export function issueRoutes(
+         req.body.executionPolicy !== undefined && monitorChanged,
+       );
+ 
++      if ((updateFields.status === "in_review" || updateFields.status === "done") && updateFields.status !== existing.status &&
++          actor.agentId && actor.agentId === existing.assigneeAgentId) {
++        await assertGenericMarkers(db, { actorAgentId: actor.agentId, toAgentId: existing.createdByAgentId, text: commentBody });
++      }
++
+       const transition: ReturnType<typeof applyIssueExecutionPolicyTransition> = expectedStatusVersion !== undefined
+         ? { patch: {} }
+         : applyIssueExecutionPolicyTransition({
+diff --git a/server/src/services/issue-generic-marker-rules.ts b/server/src/services/issue-generic-marker-rules.ts
+new file mode 100644
+index 0000000000..32c227d4a5
+--- /dev/null
++++ b/server/src/services/issue-generic-marker-rules.ts
+@@ -0,0 +1,36 @@
++// grid5 generic family (mero's _scale/GRID5-两族形式规则.md): each marker line g<i>: carries the hander's own name; no role is named.
++// Checked when an issue's text is handed from one agent to another; written like issue-execution-policy.ts: a pure
++// check, called from routes/issues.ts before the change is stored, refusing with unprocessable(...).
++import { eq } from "drizzle-orm";
++import { agents } from "@paperclipai/db";
++import type { Db } from "@paperclipai/db";
++import { unprocessable } from "../errors.js";
++
++/** The marker line `<key>: <value>` in the text, or undefined. */
++function marker(text: string, key: string): string | undefined {
++  const line = text.split("\n").find((l) => l.startsWith(`${key}:`));
++  return line === undefined ? undefined : line.slice(key.length + 1).trim();
++}
++
++const RULES = ["g1", "g2", "g3", "g4", "g5", "g6", "g7", "g8"];
++
++/** An agent's name as written on a marker line: lowercase, runs of other characters as "_". */
++export function markerName(name: string) {
++  return name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
++}
++
++/** Every marker line g<i>: must carry the name of the agent that really hands the text over; no role is named. */
++export function genericMarkerRefusals(text: string, handerName: string): string[] {
++  return RULES.flatMap((key) =>
++    marker(text, key) === markerName(handerName) ? [] : [`${key.toUpperCase()}: the line ${key}: must carry the hander's own name`]);
++}
++
++export async function assertGenericMarkers(db: Db, input: {
++  actorAgentId: string | null | undefined; toAgentId: string | null | undefined; text: string | null | undefined;
++}) {
++  if (!input.actorAgentId || !input.toAgentId || input.actorAgentId === input.toAgentId) return;
++  const [from] = await db.select({ name: agents.name }).from(agents).where(eq(agents.id, input.actorAgentId));
++  if (!from) return;
++  const refusals = genericMarkerRefusals(input.text ?? "", from.name);
++  if (refusals.length > 0) throw unprocessable("Marker check refused the handover", { refusals });
++}

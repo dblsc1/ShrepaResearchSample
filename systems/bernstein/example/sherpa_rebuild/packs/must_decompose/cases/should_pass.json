@@ -1,0 +1,1 @@
+{"about": "covered by the pairing tables (_pairing/run_table.py), not here", "todo": "the 11-17 cases ran on the MigratedShapeB workflow, which this tree does not have, and pack_cases.py cannot set the workflow params (only = [manager], min=1) this pack needs; see bernstein/sherpa_equivalent/tests/flow_baseline.tsv R7a, R7b", "steps": []}

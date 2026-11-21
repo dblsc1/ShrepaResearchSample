@@ -1,0 +1,4 @@
+# At init: commits on task branches run landing first; sherpa/ stays out of the project's git status.
+event	output	params	locked
+init.passed	install_pre_commit_hook	-	no
+init.passed	exclude_sherpa_folder	-	no

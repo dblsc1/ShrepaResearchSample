@@ -1,0 +1,3 @@
+case	given	who	does	on	args	expect	rule	source	got	reds	match	error
+R15a	@mgr ; T1 = backend by manager ; finish T1	manager	dispatch	reviewer	reviews T1	block	review_model_differs.same_model	test_scenario_5::test_same_model_review_now_allowed on baseline (feature on, reviewer model = writer model: ValueError non-independent reviewer)	block	review_model_differs.same_model	yes	
+R15b	@mgr ; T1 = architect by manager ; finish T1	manager	dispatch	reviewer	reviews T1	pass		cross_model_verifier.py:178: a reviewer model different from the writer's is accepted	pass		yes	

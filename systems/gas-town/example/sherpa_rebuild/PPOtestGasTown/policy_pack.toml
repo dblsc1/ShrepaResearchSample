@@ -1,0 +1,8 @@
+# PPOtestGasTown: the Sherpa counterpart of Gas Town (placeholder name).
+name      = "PPOtestGasTown"
+version   = "1"
+requires  = ["base", "classic_lifecycle", "max_open_lowers"]
+after     = []
+conflicts = []
+group     = "custom_lifecycle"
+writes    = []

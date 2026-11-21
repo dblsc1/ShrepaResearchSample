@@ -1,0 +1,26 @@
+{
+ "about": "F19: a shell command the seat was given (git status)",
+ "workflow": "PPOtestToolGate",
+ "steps": [
+  {
+   "by": "human",
+   "run": "dispatch",
+   "options": {
+    "to": "worker",
+    "goal": "fix a",
+    "scope": "src/"
+   }
+  },
+  {
+   "by": "worker",
+   "run": "tool-call",
+   "options": {
+    "tool": "Bash",
+    "input": "{\"command\": \"git status\"}"
+   },
+   "expect": {
+    "exit": 0
+   }
+  }
+ ]
+}

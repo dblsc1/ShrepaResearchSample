@@ -1,0 +1,56 @@
+# Written by `ppo build`. The kernel reads the newest lock here and checks every hash.
+name = "policy20261121_00"
+built_at = "2026-11-21T12:10:46+0800"
+no_guarantees = false
+order = ["base", "classic_lifecycle", "audit", "git", "task_card_check", "worktree", "waits_for", "parallel_wait_all", "write_scope", "review_rules", "PPOtest2CtoTeam"]
+
+[tables]
+flow = "f356698cdfb593b1ddef7a2ba8516959155466e0993ca6804c79fbb1624edf7e"
+checks = "9db8719fbfda85ac625b0d25356c36acf7fbe48f95bc7fcf19bf44beaecf79a9"
+outputs = "acc7910eb9fdad019dd6932de48d2ff2b8118fdc32352bb536bcd13483c33e96"
+roles = "2eb7db3158fc20a5dfa86335fc708ece2e097c3b397bab1c09bd3c7eec9722c3"
+plugins = "5e2668589aaacc471e3fdf076775bf1f1469a584d024fb0cc0353887938ca854"
+
+[pack.base]
+version = "1"
+hash = "3150629ad688d049"
+
+[pack.classic_lifecycle]
+version = "1"
+hash = "a5ff707ef704e09e"
+
+[pack.audit]
+version = "1"
+hash = "7f7ed7ba39dd826b"
+
+[pack.git]
+version = "1"
+hash = "f4fd7f43596ba13c"
+
+[pack.task_card_check]
+version = "1"
+hash = "d606cd373e1e2ac7"
+
+[pack.worktree]
+version = "1"
+hash = "2afd908ebee218c6"
+
+[pack.waits_for]
+version = "1"
+hash = "76ebeebcaa9ec593"
+
+[pack.parallel_wait_all]
+version = "1"
+hash = "d4200a60add4c646"
+
+[pack.write_scope]
+version = "1"
+hash = "4fc79b06964aba0c"
+
+[pack.review_rules]
+version = "1"
+hash = "df2f8987fcbab6ef"
+
+[pack.PPOtest2CtoTeam]
+version = "1"
+hash = "785fd65c3d717c09"

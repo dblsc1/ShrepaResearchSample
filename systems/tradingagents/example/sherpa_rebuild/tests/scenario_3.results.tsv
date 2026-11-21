@@ -1,0 +1,5 @@
+case	given	who	does	on	args	expect	rule	source	got	reds	match	error
+S3-1	@open ; start FU	fundamentals_analyst	tool-call	FU	mcp__trading__get_balance_sheet {"ticker": "NVDA", "curr_date": "2026-01-02"}	pass		test_allowed_its_remaining_statement_tools_still_run	pass		yes	
+S3-2	@open ; start FU	fundamentals_analyst	tool-call	FU	mcp__trading__get_insider_transactions {"ticker": "NVDA"}	block	seat_tool_allowlist.tool_not_allowed	test_rejected_insider_transactions_are_out_of_its_scope	block	seat_tool_allowlist.tool_not_allowed	yes	
+S3-3	@open ; start FU	fundamentals_analyst	tool-call	FU	mcp__trading__get_income_statement {"ticker": "NVDA", "curr_date": "2026-01-02"}	pass		test_allowed_full_run_never_fetches_insider_transactions (the other statement tools still run)	pass		yes	
+S3-4	@open ; @reports ; @debate ; @plan ; @trade ; @risk ; commit PM empty	portfolio_manager	debrief	PM		pass		test_allowed_full_run_never_fetches_insider_transactions (the whole run still goes through)	pass		yes	

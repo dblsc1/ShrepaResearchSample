@@ -1,0 +1,3 @@
+# ppo: which packs are on, in your preferred order (earlier loads first where no rule says otherwise).
+# ppo writes this file (enable, disable, packorderchange); you may edit it, then run `ppo build`.
+packs = ["base", "classic_lifecycle", "audit", "git", "task_card_check", "worktree", "waits_for", "parallel_wait_all", "write_scope", "review_rules", "PPOtest2CtoTeam"]

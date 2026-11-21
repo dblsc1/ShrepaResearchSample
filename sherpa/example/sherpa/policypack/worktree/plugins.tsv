@@ -1,0 +1,3 @@
+name	kind	impl	locked
+prepare_worktree	output	prepare_worktree.py	no
+remove_worktree	output	remove_worktree.py	no

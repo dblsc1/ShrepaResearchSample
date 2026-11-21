@@ -1,0 +1,5 @@
+case	given	who	does	on	args	expect	rule	source
+S5a	@mgr ; T1 = backend by manager ; finish T1	manager	dispatch	reviewer	reviews T1	pass		test_scenario_5::test_same_model_review_now_allowed (the rule is gone: no declaration can switch it on)
+S5b	@mgr ; T1 = architect by manager ; finish T1	manager	dispatch	reviewer	reviews T1	pass		test_scenario_5::test_default_reviewer_selection_unchanged
+S5c	@mgr ; T1 = backend scope src/,.github/ by manager ; start T1	backend	commit	T1	.github/workflows/ci.yml	block	seat_write_limit.outside_seat_paths	test_scenario_5::test_other_rules_unchanged (write scope)
+S5d	@mgr ; T1 = backend by manager ; T2 = reviewer after T1 by manager ; brief T2	reviewer	takeoff	T2		block	waits_for.not_ended	test_scenario_5::test_other_rules_unchanged (dependency)

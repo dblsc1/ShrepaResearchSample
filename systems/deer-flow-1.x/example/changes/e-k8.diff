@@ -1,0 +1,176 @@
+diff --git a/src/config/agents.py b/src/config/agents.py
+index f446d0d..ab846fe 100644
+--- a/src/config/agents.py
++++ b/src/config/agents.py
+@@ -19,3 +19,67 @@ AGENT_LLM_MAP: dict[str, LLMType] = {
+     "prose_writer": "basic",
+     "prompt_enhancer": "basic",
+ }
++
++# grid5 N1: the word each kind of role writes on mark line n1
++N1_MARKS = {
++    "research_team": "amber",
++    "researcher": "basil",
++    "analyst": "cedar",
++    "coder": "delta",
++}
++
++# grid5 N2: the word each kind of role writes on mark line n2
++N2_MARKS = {
++    "research_team": "ember",
++    "researcher": "fable",
++    "analyst": "garnet",
++    "coder": "harbor",
++}
++
++# grid5 N3: the word each kind of role writes on mark line n3
++N3_MARKS = {
++    "research_team": "indigo",
++    "researcher": "jasper",
++    "analyst": "kettle",
++    "coder": "lantern",
++}
++
++# grid5 N4: the word each kind of role writes on mark line n4
++N4_MARKS = {
++    "research_team": "meadow",
++    "researcher": "nectar",
++    "analyst": "orchid",
++    "coder": "pepper",
++}
++
++# grid5 N5: the word each kind of role writes on mark line n5
++N5_MARKS = {
++    "research_team": "quartz",
++    "researcher": "raven",
++    "analyst": "saffron",
++    "coder": "thistle",
++}
++
++# grid5 N6: the word each kind of role writes on mark line n6
++N6_MARKS = {
++    "research_team": "umber",
++    "researcher": "velvet",
++    "analyst": "willow",
++    "coder": "yarrow",
++}
++
++# grid5 N7: the word each kind of role writes on mark line n7
++N7_MARKS = {
++    "research_team": "zephyr",
++    "researcher": "acorn",
++    "analyst": "birch",
++    "coder": "clover",
++}
++
++# grid5 N8: the word each kind of role writes on mark line n8
++N8_MARKS = {
++    "research_team": "dune",
++    "researcher": "elm",
++    "analyst": "fern",
++    "coder": "grove",
++}
+diff --git a/src/graph/marks.py b/src/graph/marks.py
+new file mode 100644
+index 0000000..41a70f3
+--- /dev/null
++++ b/src/graph/marks.py
+@@ -0,0 +1,28 @@
++"""grid5 form rules: mark lines at the end of a handed text, checked by the receiver.
++Family N, rules n1..n8."""
++import re
++
++MARK = re.compile(r"^([gn])(\d+): (.*)$")
++from src.config.agents import N1_MARKS, N2_MARKS, N3_MARKS, N4_MARKS, N5_MARKS, N6_MARKS, N7_MARKS, N8_MARKS
++N_TABLES = (N1_MARKS, N2_MARKS, N3_MARKS, N4_MARKS, N5_MARKS, N6_MARKS, N7_MARKS, N8_MARKS)
++
++
++def read_marks(text):
++    found = {}
++    for line in (text or "").splitlines():
++        hit = MARK.match(line.strip())
++        if hit:
++            found[hit.group(1) + hit.group(2)] = hit.group(3)
++    return found
++
++
++def write_marks(kind):
++    return "\n".join(f"n{i}: {table[kind]}" for i, table in enumerate(N_TABLES, 1))
++
++
++def check_marks(text, giver, kind):
++    marks = read_marks(text)
++    for i, table in enumerate(N_TABLES, 1):
++        if marks.get(f"n{i}") != table.get(kind):
++            return f"form rule n{i}: {giver} handed {marks.get(f'n{i}')!r}, not the word of {kind}"
++    return None
+diff --git a/src/graph/nodes.py b/src/graph/nodes.py
+index a754aac..666dffe 100644
+--- a/src/graph/nodes.py
++++ b/src/graph/nodes.py
+@@ -35,6 +35,7 @@ from src.utils.json_utils import repair_json_output, sanitize_tool_response
+ 
+ from ..config import SELECTED_SEARCH_ENGINE, SearchEngine
+ from .types import State
++from .marks import check_marks, write_marks
+ from .utils import (
+     build_clarified_topic_from_history,
+     get_message_content,
+@@ -958,7 +959,22 @@ def research_team_node(state: State):
+     """Research team node that collaborates on tasks."""
+     logger.info("Research team is collaborating on tasks.")
+     logger.debug("Entering research_team_node - coordinating research and coder agents")
+-    pass
++    # grid5 form rules: research_team receives each hand-back and writes the marks of the step it hands out next
++    plan = state.get("current_plan")
++    if not plan or isinstance(plan, str):
++        return None
++    update = {}
++    giver = state.get("relay_from")
++    if giver:
++        done = [s for s in plan.steps if s.execution_res]
++        error = check_marks(done[-1].execution_res, giver, state.get("relay_from_kind"))
++        if error is not None:
++            raise RuntimeError(error)
++        update["relay_from"] = None
++    step = next((s for s in plan.steps if not s.execution_res), None)
++    if step is not None and "\ng1: " not in step.description and "\nn1: " not in step.description:
++        step.description += "\n" + write_marks("research_team")
++    return update
+ 
+ 
+ def validate_web_search_usage(messages: list, agent_name: str = "agent") -> bool:
+@@ -1106,6 +1122,12 @@ async def _execute_agent_step(
+             goto="research_team"
+         )
+ 
++    # grid5 form rules: the executor receiving the step checks the marks of the step text
++    node_name = (config or {}).get("metadata", {}).get("langgraph_node", agent_name)
++    marks_error = check_marks(current_step.description, "research_team", "research_team")
++    if marks_error is not None:
++        raise RuntimeError(marks_error)
++
+     logger.info(f"[_execute_agent_step] Executing step: {current_step.title}, agent: {agent_name}")
+     logger.debug(f"[_execute_agent_step] Completed steps so far: {len(completed_steps)}")
+ 
+@@ -1346,6 +1368,8 @@ async def _execute_agent_step(
+             "messages": agent_messages,
+             "observations": observations + [response_content + validation_info],
+             "citations": merged_citations,  # Store merged citations based on existing state and new tool results
++            "relay_from": node_name,
++            "relay_from_kind": agent_name,
+         },
+         goto="research_team",
+     )
+diff --git a/src/graph/types.py b/src/graph/types.py
+index 64abf4e..4004c1a 100644
+--- a/src/graph/types.py
++++ b/src/graph/types.py
+@@ -46,3 +46,7 @@ class State(MessagesState):
+ 
+     # Workflow control
+     goto: str = "planner"  # Default next node
++
++    # grid5 form rules: who handed back last
++    relay_from: str = None
++    relay_from_kind: str = None

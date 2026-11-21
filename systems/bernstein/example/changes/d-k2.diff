@@ -1,0 +1,105 @@
+diff --git a/src/bernstein/core/tasks/form_rules.py b/src/bernstein/core/tasks/form_rules.py
+new file mode 100644
+index 000000000..c1db1d155
+--- /dev/null
++++ b/src/bernstein/core/tasks/form_rules.py
+@@ -0,0 +1,28 @@
++"""grid5 formal rules (mero, _scale/GRID5-两族形式规则.md): on: G1, G2.
++
++The mark lines at the end of a handed-over text, `g<i>: <giver>` or `n<i>: <word>`. The task store checks the
++dispatch text when it is claimed and the hand-back text when it is handed back. check returns the refusal or None.
++"""
++from __future__ import annotations
++
++
++
++def mark_lines(text: str | None) -> dict[str, str]:
++    """The mark lines of the text: `<name>: <value>` lines at its end."""
++    out: dict[str, str] = {}
++    for line in reversed((text or "").rstrip("\n").split("\n")):
++        name, sep, value = line.partition(": ")
++        if not sep or not name.isalnum():
++            break
++        out[name] = value
++    return out
++
++
++def check(text: str, *, giver: str) -> str | None:
++    """`giver` (a role) hands the text over."""
++    marks = mark_lines(text)
++    if marks.get("g1") != giver:
++        return f"form rule G1: g1 is not {giver}"
++    if marks.get("g2") != giver:
++        return f"form rule G2: g2 is not {giver}"
++    return None
+diff --git a/src/bernstein/core/tasks/task_store_core.py b/src/bernstein/core/tasks/task_store_core.py
+index 46e3da400..967e4c226 100644
+--- a/src/bernstein/core/tasks/task_store_core.py
++++ b/src/bernstein/core/tasks/task_store_core.py
+@@ -36,6 +36,7 @@ from bernstein.core.tasks.lifecycle import (
+     transition_agent,
+     transition_task,
+ )
++from bernstein.core.tasks import form_rules
+ from bernstein.core.tasks.models import (
+     AgentSession,
+     CompletionSignal,
+@@ -2163,6 +2164,12 @@ class TaskStore:
+                     logger.info("claim_next: skipping %s - %s", task_id, overlap_msg)
+                     blocked_entries.append((priority, task_id))
+                     continue
++                # grid5: the mark lines of the dispatch text
++                form_msg = self._form_dispatch_refusal(candidate)
++                if form_msg is not None:
++                    logger.info("claim_next: skipping %s - %s", task_id, form_msg)
++                    blocked_entries.append((priority, task_id))
++                    continue
+                 task = candidate
+                 break
+             for entry in blocked_entries:
+@@ -2237,6 +2244,10 @@ class TaskStore:
+             overlap_msg = self._check_file_ownership_overlap(task)
+             if overlap_msg is not None:
+                 raise ValueError(overlap_msg)
++            # grid5: the mark lines of the dispatch text
++            form_msg = self._form_dispatch_refusal(task)
++            if form_msg is not None:
++                raise ValueError(form_msg)
+             self._index_remove(task)
+             transition_task(task, TaskStatus.CLAIMED, actor="task_store", reason="claim_by_id")
+             task.claimed_at = time.time()
+@@ -2297,6 +2308,10 @@ class TaskStore:
+                 if self._check_file_ownership_overlap(task) is not None:
+                     failed.append(task_id)
+                     continue
++                # grid5: the mark lines of the dispatch text
++                if self._form_dispatch_refusal(task) is not None:
++                    failed.append(task_id)
++                    continue
+                 self._index_remove(task)
+                 transition_task(task, TaskStatus.CLAIMED, actor="task_store", reason=f"claim_batch by {agent_id}")
+                 task.claimed_at = time.time()
+@@ -2392,6 +2407,11 @@ class TaskStore:
+             if task.status == TaskStatus.STOP_REQ:
+                 raise IllegalTransitionError("task", task_id, task.status.value, TaskStatus.DONE.value)
+ 
++            # grid5: the mark lines of the hand-back text
++            form_msg = form_rules.check(result_summary, giver=task.role)
++            if form_msg is not None:
++                raise ValueError(form_msg)
++
+             # Issue #4401: A planning/manager task that created zero child tasks has not
+             # accomplished any work. It must fail rather than falsely reporting success.
+             # Scoped to this task's own attempt (issue #4466) - see
+@@ -3307,6 +3327,11 @@ class TaskStore:
+ 
+     # -- TASK-003: File ownership validation before claim -------------------
+ 
++    def _form_dispatch_refusal(self, task: Task) -> str | None:
++        """grid5: the receiver checks the mark lines of the dispatch text (the description), given by the parent."""
++        parent = self._tasks.get(task.parent_task_id) if task.parent_task_id else None
++        return None if parent is None else form_rules.check(task.description, giver=parent.role)
++
+     def _check_file_ownership_overlap(
+         self,
+         task: Task,

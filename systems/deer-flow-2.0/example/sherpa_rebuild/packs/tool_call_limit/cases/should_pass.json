@@ -1,0 +1,48 @@
+{
+ "about": "F18/R8: the n-th tool call (n=3) passes",
+ "workflow": "PPOtestToolGate",
+ "steps": [
+  {
+   "by": "human",
+   "run": "dispatch",
+   "options": {
+    "to": "worker",
+    "goal": "fix a",
+    "scope": "src/"
+   }
+  },
+  {
+   "by": "worker",
+   "run": "tool-call",
+   "options": {
+    "tool": "Read",
+    "input": "{\"file_path\": \"src/a.py\"}"
+   },
+   "expect": {
+    "exit": 0
+   }
+  },
+  {
+   "by": "worker",
+   "run": "tool-call",
+   "options": {
+    "tool": "Read",
+    "input": "{\"file_path\": \"src/a.py\"}"
+   },
+   "expect": {
+    "exit": 0
+   }
+  },
+  {
+   "by": "worker",
+   "run": "tool-call",
+   "options": {
+    "tool": "Read",
+    "input": "{\"file_path\": \"src/a.py\"}"
+   },
+   "expect": {
+    "exit": 0
+   }
+  }
+ ]
+}

@@ -1,0 +1,6 @@
+# The git sampler, the git rules check, two init outputs.
+name	kind	impl	locked
+git	sampler	git.py	yes
+git_rules	check	git_rules.py	no
+install_pre_commit_hook	output	install_pre_commit_hook.py	no
+exclude_sherpa_folder	output	exclude_sherpa_folder.py	no

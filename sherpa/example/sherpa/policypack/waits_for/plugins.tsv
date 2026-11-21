@@ -1,0 +1,4 @@
+name	kind	impl	locked
+waited_tasks_exist	check	waited_tasks_exist.py	no
+waited_tasks_ended	check	waited_tasks_ended.py	no
+tell_waiting_tasks	output	tell_waiting_tasks.py	no

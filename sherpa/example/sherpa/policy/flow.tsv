@@ -1,0 +1,12 @@
+# Built by `ppo build` from sherpa/policypack/. Do not edit: change a pack, then build.
+command	roles	actor	object	from	to	body	pack
+init	human	-	-	-	-	init	base
+dispatch	human,cto	-	tasks	-	dispatched	dispatch	classic_lifecycle
+brief	cto,worker,reviewer	task_card.card.assignee	tasks	dispatched	briefed	-	classic_lifecycle
+takeoff	cto,worker,reviewer	task_card.card.assignee	tasks	briefed	onAir	-	classic_lifecycle
+landing	cto,worker,reviewer	task_card.card.assignee	tasks	onAir,landed,debriefed	landed	-	classic_lifecycle
+debrief	cto,worker,reviewer	task_card.card.assignee	tasks	landed	debriefed	-	classic_lifecycle
+receipt	human,cto	task_card.card.issued_by	tasks	debriefed	closed	-	classic_lifecycle
+reopen	human,cto	task_card.card.issued_by	tasks	debriefed	briefed	-	classic_lifecycle
+cancel	human,cto	task_card.card.issued_by	tasks	dispatched,briefed,onAir,landed,debriefed	cancelling	-	classic_lifecycle
+cancel-confirm	human,cto	task_card.card.issued_by	tasks	cancelling	cancelled	-	classic_lifecycle

@@ -1,0 +1,3 @@
+event	output	params	locked
+receipt.passed	tell_waiting_tasks	ended=closed,cancelled	no
+cancel-confirm.passed	tell_waiting_tasks	ended=closed,cancelled	no

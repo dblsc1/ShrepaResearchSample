@@ -1,0 +1,75 @@
+diff --git a/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/.paperclip.yaml b/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/.paperclip.yaml
+index 95ef0b9c51..4487dd451d 100644
+--- a/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/.paperclip.yaml
++++ b/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/.paperclip.yaml
+@@ -37,3 +37,21 @@ agents:
+       handoffWords:
+         n1: birch
+         n2: onyx
++  senior-coder-g1-2:
++    permissions:
++      authorizationPolicy:
++        assignmentPolicy:
++          mode: protected
++    runtime:
++      handoffWords:
++        n1: juniper
++        n2: topaz
++  senior-coder-g1-3:
++    permissions:
++      authorizationPolicy:
++        assignmentPolicy:
++          mode: protected
++    runtime:
++      handoffWords:
++        n1: juniper
++        n2: topaz
+diff --git a/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/TEAM.md b/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/TEAM.md
+index f9fdb8f040..81f8d68e4f 100644
+--- a/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/TEAM.md
++++ b/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/TEAM.md
+@@ -10,6 +10,8 @@ includes:
+   - agents/cto-g1/AGENTS.md
+   - agents/senior-coder-g1/AGENTS.md
+   - agents/qa-g1/AGENTS.md
++  - agents/senior-coder-g1-2/AGENTS.md
++  - agents/senior-coder-g1-3/AGENTS.md
+ defaultInstall: false
+ recommendedForCompanyTypes:
+   - software
+diff --git a/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/agents/senior-coder-g1-2/AGENTS.md b/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/agents/senior-coder-g1-2/AGENTS.md
+new file mode 100644
+index 0000000000..a415783bf5
+--- /dev/null
++++ b/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/agents/senior-coder-g1-2/AGENTS.md
+@@ -0,0 +1,12 @@
++---
++name: Senior Coder G1 2
++slug: senior-coder-g1-2
++title: Senior Software Engineer
++role: engineer
++reportsTo: cto-g1
++skills:
++  - github-pr-workflow
++  - doc-maintenance
++---
++
++You are a Senior Software Engineer in Product Engineering pod 1. You own software implementation and maintenance for the pod.
+diff --git a/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/agents/senior-coder-g1-3/AGENTS.md b/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/agents/senior-coder-g1-3/AGENTS.md
+new file mode 100644
+index 0000000000..83daf856a0
+--- /dev/null
++++ b/packages/teams-catalog/catalog/bundled/software-development/scale-engineering/agents/senior-coder-g1-3/AGENTS.md
+@@ -0,0 +1,12 @@
++---
++name: Senior Coder G1 3
++slug: senior-coder-g1-3
++title: Senior Software Engineer
++role: engineer
++reportsTo: cto-g1
++skills:
++  - github-pr-workflow
++  - doc-maintenance
++---
++
++You are a Senior Software Engineer in Product Engineering pod 1. You own software implementation and maintenance for the pod.

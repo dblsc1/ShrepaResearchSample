@@ -1,0 +1,4 @@
+#!/bin/sh
+# Runs ppo from this repo without installing it. -P keeps the caller's cwd off sys.path.
+here=$(cd "$(dirname "$0")/.." && pwd)
+PYTHONPATH="$here${PYTHONPATH:+:$PYTHONPATH}" exec python3 -P -m ppo.cli "$@"

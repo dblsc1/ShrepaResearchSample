@@ -1,0 +1,10 @@
+# task_card_check: a card is complete before dispatch writes it; agent_rule_files.py is the one list of agent rule files (write_scope and claude_session read it).
+name      = "task_card_check"
+version   = "1"
+requires  = ["base", "classic_lifecycle"]
+after     = []
+conflicts = []
+group     = "classic_lifecycle_pack"
+writes    = []
+provides  = []
+reads     = ["dispatch --to", "dispatch --goal", "dispatch --scope"]

@@ -1,0 +1,220 @@
+diff --git a/SherpaPolicyPackOrganizer/classic_lifecycle_pack/named_marks/checks.tsv b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/named_marks/checks.tsv
+new file mode 100644
+index 0000000..09ff763
+--- /dev/null
++++ b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/named_marks/checks.tsv
+@@ -0,0 +1,3 @@
++command	check	stage	action	params	locked
++brief	named_marks	general	block	-	no
++receipt	named_marks	general	block	-	no
+diff --git a/SherpaPolicyPackOrganizer/classic_lifecycle_pack/named_marks/named_marks.py b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/named_marks/named_marks.py
+new file mode 100644
+index 0000000..8e76e4d
+--- /dev/null
++++ b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/named_marks/named_marks.py
+@@ -0,0 +1,35 @@
++"""Check named_marks (brief, receipt): grid5 named family (placeholder names; mero #25667):
++rule n<i> wants a line "n<i>: <word>" with word i of the giver's seat in params "<seat>=<w1>/<w2>/...", written per class by the workflow.
++The text is the one handed over (sampler relay_text, pack relay_text); a red names its rule: named_marks.<rule>."""
++from sherpa.result import passed, red
++
++COMMANDS = ("brief", "receipt")
++AGAIN = {"brief": "the upper cancels and dispatches again with the marker lines fixed",
++         "receipt": "the upper reopens; the lower debriefs again with --text, the marker lines fixed"}
++
++
++def mark(text, key):
++    """The value of the marker line "<key>: <value>", or None."""
++    for line in text.splitlines():
++        if line.strip().startswith(key + ":"):
++            return line.strip()[len(key) + 1:].strip()
++    return None
++
++
++RULES = ['n1', 'n2', 'n3', 'n4']
++
++
++def run(sample, params):
++    part = sample.parts.get("relay_text") or {}
++    text = part.get("text") or ""
++    words = params.get(part.get("giver") or "")
++    if words is None:
++        return red("named_marks.no_words", f"the workflow gives seat {part.get('giver')} no words",
++                   f"add {part.get('giver')}=<w1>/<w2>/... (or its class) to [policy.named_marks] params")
++    words = words.split("/")
++    for i, key in enumerate(RULES):
++        want = words[i] if i < len(words) else None
++        if mark(text, key) != want:
++            return red(f"named_marks.{key}", f"the line {key}: is {mark(text, key)!r}, not seat {part.get('giver')}'s word",
++                       AGAIN[sample.command])
++    return passed(*RULES)
+diff --git a/SherpaPolicyPackOrganizer/classic_lifecycle_pack/named_marks/plugins.tsv b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/named_marks/plugins.tsv
+new file mode 100644
+index 0000000..f147f2c
+--- /dev/null
++++ b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/named_marks/plugins.tsv
+@@ -0,0 +1,2 @@
++name	kind	impl	locked
++named_marks	check	named_marks.py	no
+diff --git a/SherpaPolicyPackOrganizer/classic_lifecycle_pack/named_marks/policy_pack.toml b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/named_marks/policy_pack.toml
+new file mode 100644
+index 0000000..b554ff4
+--- /dev/null
++++ b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/named_marks/policy_pack.toml
+@@ -0,0 +1,7 @@
++# named_marks: the first 4 grid5 named rule(s) (placeholder name; mero #25667).
++name     = "named_marks"
++version  = "1"
++group    = "classic_lifecycle_pack"
++requires = ["base", "classic_lifecycle", "relay_text"]
++after    = ["relay_text"]
++reads    = ["relay_text"]
+diff --git a/SherpaPolicyPackOrganizer/classic_lifecycle_pack/relay_text/outputs.tsv b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/relay_text/outputs.tsv
+new file mode 100644
+index 0000000..d66d683
+--- /dev/null
++++ b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/relay_text/outputs.tsv
+@@ -0,0 +1,5 @@
++# The text handed back, and what each taker took.
++event	output	params	locked
++debrief.passed	record_relay	-	no
++brief.passed	record_relay	-	no
++receipt.passed	record_relay	-	no
+diff --git a/SherpaPolicyPackOrganizer/classic_lifecycle_pack/relay_text/plugins.tsv b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/relay_text/plugins.tsv
+new file mode 100644
+index 0000000..eeffe70
+--- /dev/null
++++ b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/relay_text/plugins.tsv
+@@ -0,0 +1,3 @@
++name	kind	impl	locked
++relay_text	sampler	relay_text.py	no
++record_relay	output	record_relay.py	no
+diff --git a/SherpaPolicyPackOrganizer/classic_lifecycle_pack/relay_text/policy_pack.toml b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/relay_text/policy_pack.toml
+new file mode 100644
+index 0000000..afc537d
+--- /dev/null
++++ b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/relay_text/policy_pack.toml
+@@ -0,0 +1,13 @@
++# relay_text: what the relay rules (relay_*) read. The receiver checks the text it takes at the step it takes it:
++#   brief    the lower takes the task card's goal from its upper
++#   receipt  the upper takes the text the lower handed back: `sherpa debrief --text "..."`, kept in relay/returned/
++# Each taker's last relay line is kept in relay/received/<license>.json (for relay_count). Placeholder names.
++name      = "relay_text"
++version   = "1"
++requires  = ["base", "classic_lifecycle"]
++after     = []
++conflicts = []
++group     = "classic_lifecycle_pack"
++writes    = ["relay/"]
++provides  = ["relay_text", "debrief --text"]
++reads     = []
+diff --git a/SherpaPolicyPackOrganizer/classic_lifecycle_pack/relay_text/record_relay.py b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/relay_text/record_relay.py
+new file mode 100644
+index 0000000..24f9cd1
+--- /dev/null
++++ b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/relay_text/record_relay.py
+@@ -0,0 +1,19 @@
++"""Output record_relay. debrief.passed: keep the --text handed back in relay/returned/<task>.txt.
++brief.passed / receipt.passed: keep the relay line the caller just took in relay/received/<license>.json."""
++import json
++from pathlib import Path
++
++
++def apply(sample, params, outcome, task):
++    folder = Path(sample.governance_repo) / "relay"
++    if sample.command == "debrief":
++        text = sample.options.get("text")
++        path = folder / "returned" / f"{task}.txt"
++        path.parent.mkdir(parents=True, exist_ok=True)
++        path.write_text("" if text in (None, "yes") else text, encoding="utf-8")
++        return f"{task}: text handed back kept"
++    line = dict((sample.parts.get("relay_text") or {}).get("line") or {})
++    path = folder / "received" / f"{sample.caller.inst}.json"
++    path.parent.mkdir(parents=True, exist_ok=True)
++    path.write_text(json.dumps(line, ensure_ascii=False) + "\n", encoding="utf-8")
++    return f"{sample.caller.inst} took {line}"
+diff --git a/SherpaPolicyPackOrganizer/classic_lifecycle_pack/relay_text/relay_text.py b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/relay_text/relay_text.py
+new file mode 100644
+index 0000000..ce5903c
+--- /dev/null
++++ b/SherpaPolicyPackOrganizer/classic_lifecycle_pack/relay_text/relay_text.py
+@@ -0,0 +1,50 @@
++"""Sampler relay_text (brief, receipt): the text just handed over, read where the receiver takes it. Read-only.
++
++  text      brief: the task card's goal (from the upper); receipt: relay/returned/<task>.txt (the lower's
++            `debrief --text`, written by record_relay); '' when there is none
++  line      the fields of the text's last line `relay: pw=123 names=a>b n=3` -> {"pw": "123", ...}; None when the
++            last line is no relay line
++  giver, receiver   the seats of who handed the text over and who takes it (policy/roles.tsv, by license prefix)
++  lowers    the giver's direct lower seats (roles.tsv superior column)
++  received  the relay line the giver itself last took, {} when none (relay/received/<license>.json)
++"""
++import json
++from pathlib import Path
++
++
++def read_json(path: Path):
++    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
++
++
++def roles(repo: Path) -> dict:
++    """{prefix: (role, superior)} from the built roles table (its first line is a comment)."""
++    table = repo / "policy" / "roles.tsv"
++    rows = [line.split("\t") for line in table.read_text(encoding="utf-8").splitlines()
++            if line and not line.startswith("#")] if table.is_file() else []
++    heads = rows[0] if rows else []
++    return {c["prefix"]: (c["role"], c["superior"]) for c in (dict(zip(heads, r)) for r in rows[1:])}
++
++
++def relay_line(text: str):
++    last = (text.strip().splitlines() or [""])[-1].strip()
++    if not last.startswith("relay:"):
++        return None
++    return dict(word.split("=", 1) for word in last[len("relay:"):].split() if "=" in word)
++
++
++def sample(request) -> dict:
++    if request.command not in ("brief", "receipt") or not request.task:
++        return {}
++    repo = Path(request.governance_repo)
++    card = read_json(repo / "tasks" / request.task / "task.json") or {}
++    table = roles(repo)
++    seat = lambda inst: table.get((inst or "").split("-", 1)[0], (None, None))[0]
++    if request.command == "brief":
++        giver, taker, text = card.get("issued_by"), card.get("assignee"), card.get("goal") or ""
++    else:
++        returned = repo / "relay" / "returned" / f"{request.task}.txt"
++        giver, taker = card.get("assignee"), card.get("issued_by")
++        text = returned.read_text(encoding="utf-8") if returned.is_file() else ""
++    return {"text": text, "line": relay_line(text), "giver": seat(giver), "receiver": seat(taker),
++            "lowers": sorted(r for r, up in table.values() if up == seat(giver)),
++            "received": read_json(repo / "relay" / "received" / f"{giver}.json") or {}}
+diff --git a/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestScale/PPOtestScale.toml b/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestScale/PPOtestScale.toml
+index 70513bd..bddbbe3 100644
+--- a/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestScale/PPOtestScale.toml
++++ b/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestScale/PPOtestScale.toml
+@@ -56,3 +56,11 @@ params = "min=1"
+ 
+ [policy.parallel_wait_all]
+ except = ["manager"]
++
++[policy.named_marks]
++params = """\
++manager=red1/red2/red3/red4;\
++lead=green1/green2/green3/green4;\
++backend=blue1/blue2/blue3/blue4;\
++qa=yellow1/yellow2/yellow3/yellow4\
++"""
+diff --git a/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestScale/policy_pack.toml b/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestScale/policy_pack.toml
+index a86b09c..d09288e 100644
+--- a/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestScale/policy_pack.toml
++++ b/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestScale/policy_pack.toml
+@@ -1,7 +1,7 @@
+ # PPOtestScale: the Bernstein equivalent scaled to k groups (placeholder name).
+ name      = "PPOtestScale"
+ version   = "1"
+-requires  = ["base", "classic_lifecycle", "seat_write_limit", "must_decompose", "parallel_wait_all", "review_model_differs"]
++requires  = ["base", "classic_lifecycle", "seat_write_limit", "must_decompose", "parallel_wait_all", "review_model_differs", "relay_text", "named_marks"]
+ after     = []
+ conflicts = []
+ group     = "custom_lifecycle"

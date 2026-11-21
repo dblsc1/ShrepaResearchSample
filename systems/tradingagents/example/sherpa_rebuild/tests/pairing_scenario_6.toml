@@ -1,0 +1,15 @@
+# The Sherpa counterpart of TradingAgents' default graph (runner: _pairing/run_table.py)
+sherpa   = "../modified"
+workflow = "PPOtestTradingAgents"   # on branch scenario-6-add-layer
+packs    = ["base", "classic_lifecycle", "git", "worktree", "task_card", "waits_for", "parallel_wait_all",
+            "fixed_order", "seat_write_limit", "reopen_limit"]
+scope    = "src/"
+
+[macros]
+open     = "PM = portfolio_manager ; start PM ; RM = research_manager by portfolio_manager ; start RM ; MK = market_analyst by research_manager ; SE = sentiment_analyst by research_manager ; NW = news_analyst by research_manager ; FU = fundamentals_analyst by research_manager ; ML = memory_log by portfolio_manager"
+reports  = "finish MK empty ; finish SE empty ; finish NW empty ; finish FU empty ; finish ML"
+debate   = "BU = bull_researcher after MK,SE,NW,FU,ML by research_manager ; finish BU ; BE = bear_researcher after BU by research_manager ; finish BE"
+plan     = "land RM ; close RM"
+trade    = "TR = trader after RM by portfolio_manager ; finish TR"
+team     = "RL = risk_lead by portfolio_manager ; start RL ; AG = aggressive_analyst after TR by risk_lead ; finish AG ; CO = conservative_analyst after AG by risk_lead ; finish CO ; NE = neutral_analyst after CO by risk_lead ; finish NE"
+risk     = "@team ; land RL ; close RL"

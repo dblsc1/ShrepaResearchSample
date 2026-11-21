@@ -1,0 +1,23 @@
+rule	shared_rule	coordinator	background_investigator	planner	human_feedback	research_team	researcher	analyst	coder	reporter	n_named	清单「点名」	对不上
+R01	order			1			1	1	1		4	analyst、coder、planner、researcher	
+R02	cap			b						1	1	reporter	
+R03	-			b						1	1	planner、reporter	planner
+R04	-			b						1	1	reporter	
+R05	review			1	b						1	planner	
+R06	cap			1	b					1	2	planner、reporter	
+R07	-										0	-	
+R08	-										0	-	
+R09	-										0	-	
+R10	cap	b		1							1	planner	
+R11	-	b		1							1	planner	
+R12	order	b	1	1							2	background_investigator、planner	
+R13	write	b					b	b	b		0	analyst、coder、researcher	analyst、coder、researcher
+R14	write										0	-	
+R15	-						1				1	researcher	
+R16	cap										0	-	
+R17	-					1					1	research_team	
+R18	review										0	-	
+R19	-										0	-	
+R20	-		b				b				0	-	
+R21	-										0	-	
+R22	cap										0	-	

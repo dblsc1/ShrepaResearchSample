@@ -1,0 +1,305 @@
+diff --git a/src/graph/builder.py b/src/graph/builder.py
+index 71cf3a2..4e25ba1 100644
+--- a/src/graph/builder.py
++++ b/src/graph/builder.py
+@@ -16,6 +16,10 @@ from .nodes import (
+     reporter_node,
+     research_team_node,
+     researcher_node,
++    researcher_2_node,
++    researcher_3_node,
++    researcher_4_node,
++    researcher_5_node,
+ )
+ from .types import State
+ 
+@@ -44,6 +48,14 @@ def continue_to_running_research_team(state: State):
+         return "analyst"
+     if incomplete_step.step_type == StepType.PROCESSING:
+         return "coder"
++    if incomplete_step.step_type == StepType.RESEARCHER_2:
++        return "researcher_2"
++    if incomplete_step.step_type == StepType.RESEARCHER_3:
++        return "researcher_3"
++    if incomplete_step.step_type == StepType.RESEARCHER_4:
++        return "researcher_4"
++    if incomplete_step.step_type == StepType.RESEARCHER_5:
++        return "researcher_5"
+     return "planner"
+ 
+ 
+@@ -59,12 +71,25 @@ def _build_base_graph():
+     builder.add_node("researcher", researcher_node)
+     builder.add_node("analyst", analyst_node)
+     builder.add_node("coder", coder_node)
++    builder.add_node("researcher_2", researcher_2_node)
++    builder.add_node("researcher_3", researcher_3_node)
++    builder.add_node("researcher_4", researcher_4_node)
++    builder.add_node("researcher_5", researcher_5_node)
+     builder.add_node("human_feedback", human_feedback_node)
+     builder.add_edge("background_investigator", "planner")
+     builder.add_conditional_edges(
+         "research_team",
+         continue_to_running_research_team,
+-        ["planner", "researcher", "analyst", "coder"],
++        [
++            "planner",
++            "researcher",
++            "analyst",
++            "coder",
++            "researcher_2",
++            "researcher_3",
++            "researcher_4",
++            "researcher_5",
++        ],
+     )
+     builder.add_edge("reporter", END)
+     return builder
+diff --git a/src/graph/nodes.py b/src/graph/nodes.py
+index 5222b01..91848e8 100644
+--- a/src/graph/nodes.py
++++ b/src/graph/nodes.py
+@@ -1527,3 +1527,175 @@ async def analyst_node(
+         "analyst",
+         [],  # No tools - pure reasoning
+     )
++
++
++async def researcher_2_node(
++    state: State, config: RunnableConfig
++) -> Command[Literal["research_team"]]:
++    """Researcher node that do research"""
++    logger.info("Researcher node is researching.")
++    logger.debug(f"[researcher_2_node] Starting researcher agent")
++    
++    configurable = Configuration.from_runnable_config(config)
++    logger.debug(f"[researcher_2_node] Max search results: {configurable.max_search_results}")
++    
++    # Build tools list based on configuration
++    tools = []
++    
++    # Add web search and crawl tools only if web search is enabled
++    if configurable.enable_web_search:
++        tools.extend([get_web_search_tool(configurable.max_search_results), crawl_tool])
++    else:
++        logger.info("[researcher_2_node] Web search is disabled, using only local RAG")
++    
++    # Add retriever tool if resources are available (always add, higher priority)
++    retriever_tool = get_retriever_tool(state.get("resources", []))
++    if retriever_tool:
++        logger.debug(f"[researcher_2_node] Adding retriever tool to tools list")
++        tools.insert(0, retriever_tool)
++    
++    # Warn if no tools are available
++    if not tools:
++        logger.warning("[researcher_2_node] No tools available (web search disabled, no resources). "
++                       "Researcher will operate in pure reasoning mode.")
++    
++    logger.info(f"[researcher_2_node] Researcher tools count: {len(tools)}")
++    logger.debug(f"[researcher_2_node] Researcher tools: {[tool.name if hasattr(tool, 'name') else str(tool) for tool in tools]}")
++    logger.info(f"[researcher_2_node] enforce_researcher_search={configurable.enforce_researcher_search}, "
++                f"enable_web_search={configurable.enable_web_search}")
++    
++    return await _setup_and_execute_agent_step(
++        state,
++        config,
++        "researcher",
++        tools,
++    )
++
++
++async def researcher_3_node(
++    state: State, config: RunnableConfig
++) -> Command[Literal["research_team"]]:
++    """Researcher node that do research"""
++    logger.info("Researcher node is researching.")
++    logger.debug(f"[researcher_3_node] Starting researcher agent")
++    
++    configurable = Configuration.from_runnable_config(config)
++    logger.debug(f"[researcher_3_node] Max search results: {configurable.max_search_results}")
++    
++    # Build tools list based on configuration
++    tools = []
++    
++    # Add web search and crawl tools only if web search is enabled
++    if configurable.enable_web_search:
++        tools.extend([get_web_search_tool(configurable.max_search_results), crawl_tool])
++    else:
++        logger.info("[researcher_3_node] Web search is disabled, using only local RAG")
++    
++    # Add retriever tool if resources are available (always add, higher priority)
++    retriever_tool = get_retriever_tool(state.get("resources", []))
++    if retriever_tool:
++        logger.debug(f"[researcher_3_node] Adding retriever tool to tools list")
++        tools.insert(0, retriever_tool)
++    
++    # Warn if no tools are available
++    if not tools:
++        logger.warning("[researcher_3_node] No tools available (web search disabled, no resources). "
++                       "Researcher will operate in pure reasoning mode.")
++    
++    logger.info(f"[researcher_3_node] Researcher tools count: {len(tools)}")
++    logger.debug(f"[researcher_3_node] Researcher tools: {[tool.name if hasattr(tool, 'name') else str(tool) for tool in tools]}")
++    logger.info(f"[researcher_3_node] enforce_researcher_search={configurable.enforce_researcher_search}, "
++                f"enable_web_search={configurable.enable_web_search}")
++    
++    return await _setup_and_execute_agent_step(
++        state,
++        config,
++        "researcher",
++        tools,
++    )
++
++
++async def researcher_4_node(
++    state: State, config: RunnableConfig
++) -> Command[Literal["research_team"]]:
++    """Researcher node that do research"""
++    logger.info("Researcher node is researching.")
++    logger.debug(f"[researcher_4_node] Starting researcher agent")
++    
++    configurable = Configuration.from_runnable_config(config)
++    logger.debug(f"[researcher_4_node] Max search results: {configurable.max_search_results}")
++    
++    # Build tools list based on configuration
++    tools = []
++    
++    # Add web search and crawl tools only if web search is enabled
++    if configurable.enable_web_search:
++        tools.extend([get_web_search_tool(configurable.max_search_results), crawl_tool])
++    else:
++        logger.info("[researcher_4_node] Web search is disabled, using only local RAG")
++    
++    # Add retriever tool if resources are available (always add, higher priority)
++    retriever_tool = get_retriever_tool(state.get("resources", []))
++    if retriever_tool:
++        logger.debug(f"[researcher_4_node] Adding retriever tool to tools list")
++        tools.insert(0, retriever_tool)
++    
++    # Warn if no tools are available
++    if not tools:
++        logger.warning("[researcher_4_node] No tools available (web search disabled, no resources). "
++                       "Researcher will operate in pure reasoning mode.")
++    
++    logger.info(f"[researcher_4_node] Researcher tools count: {len(tools)}")
++    logger.debug(f"[researcher_4_node] Researcher tools: {[tool.name if hasattr(tool, 'name') else str(tool) for tool in tools]}")
++    logger.info(f"[researcher_4_node] enforce_researcher_search={configurable.enforce_researcher_search}, "
++                f"enable_web_search={configurable.enable_web_search}")
++    
++    return await _setup_and_execute_agent_step(
++        state,
++        config,
++        "researcher",
++        tools,
++    )
++
++
++async def researcher_5_node(
++    state: State, config: RunnableConfig
++) -> Command[Literal["research_team"]]:
++    """Researcher node that do research"""
++    logger.info("Researcher node is researching.")
++    logger.debug(f"[researcher_5_node] Starting researcher agent")
++    
++    configurable = Configuration.from_runnable_config(config)
++    logger.debug(f"[researcher_5_node] Max search results: {configurable.max_search_results}")
++    
++    # Build tools list based on configuration
++    tools = []
++    
++    # Add web search and crawl tools only if web search is enabled
++    if configurable.enable_web_search:
++        tools.extend([get_web_search_tool(configurable.max_search_results), crawl_tool])
++    else:
++        logger.info("[researcher_5_node] Web search is disabled, using only local RAG")
++    
++    # Add retriever tool if resources are available (always add, higher priority)
++    retriever_tool = get_retriever_tool(state.get("resources", []))
++    if retriever_tool:
++        logger.debug(f"[researcher_5_node] Adding retriever tool to tools list")
++        tools.insert(0, retriever_tool)
++    
++    # Warn if no tools are available
++    if not tools:
++        logger.warning("[researcher_5_node] No tools available (web search disabled, no resources). "
++                       "Researcher will operate in pure reasoning mode.")
++    
++    logger.info(f"[researcher_5_node] Researcher tools count: {len(tools)}")
++    logger.debug(f"[researcher_5_node] Researcher tools: {[tool.name if hasattr(tool, 'name') else str(tool) for tool in tools]}")
++    logger.info(f"[researcher_5_node] enforce_researcher_search={configurable.enforce_researcher_search}, "
++                f"enable_web_search={configurable.enable_web_search}")
++    
++    return await _setup_and_execute_agent_step(
++        state,
++        config,
++        "researcher",
++        tools,
++    )
+diff --git a/src/graph/utils.py b/src/graph/utils.py
+index 2a2c0b4..d57c79b 100644
+--- a/src/graph/utils.py
++++ b/src/graph/utils.py
+@@ -8,6 +8,10 @@ ASSISTANT_SPEAKER_NAMES = {
+     "planner",
+     "researcher",
+     "coder",
++    "researcher_2",
++    "researcher_3",
++    "researcher_4",
++    "researcher_5",
+     "reporter",
+     "background_investigator",
+ }
+diff --git a/src/prompts/planner.md b/src/prompts/planner.md
+index 1132e1e..660e679 100644
+--- a/src/prompts/planner.md
++++ b/src/prompts/planner.md
+@@ -86,6 +86,14 @@ Different types of steps have different requirements and are handled by speciali
+    - Creating visualizations or data outputs
+    - **Handled by**: Coder agent (has Python REPL tool)
+ 
++- **Steps with `step_type: "research_2"`**: same as research steps. **Handled by**: `researcher_2` agent
++
++- **Steps with `step_type: "research_3"`**: same as research steps. **Handled by**: `researcher_3` agent
++
++- **Steps with `step_type: "research_4"`**: same as research steps. **Handled by**: `researcher_4` agent
++
++- **Steps with `step_type: "research_5"`**: same as research steps. **Handled by**: `researcher_5` agent
++
+ ## Choosing Between Analysis and Processing Steps
+ 
+ Use **analysis** steps when:
+diff --git a/src/prompts/planner.zh_CN.md b/src/prompts/planner.zh_CN.md
+index d65cb6f..a933b53 100644
+--- a/src/prompts/planner.zh_CN.md
++++ b/src/prompts/planner.zh_CN.md
+@@ -86,6 +86,14 @@ CURRENT_TIME: {{ CURRENT_TIME }}
+    - 创建可视化或数据输出
+    - **处理者**：编码代理（具有Python REPL工具）
+ 
++- **`step_type: "research_2"` 的步骤**：同研究步骤。**处理者**：`researcher_2` 代理
++
++- **`step_type: "research_3"` 的步骤**：同研究步骤。**处理者**：`researcher_3` 代理
++
++- **`step_type: "research_4"` 的步骤**：同研究步骤。**处理者**：`researcher_4` 代理
++
++- **`step_type: "research_5"` 的步骤**：同研究步骤。**处理者**：`researcher_5` 代理
++
+ ## 选择分析步骤还是处理步骤
+ 
+ 使用**分析**步骤当：
+diff --git a/src/prompts/planner_model.py b/src/prompts/planner_model.py
+index f63cd0b..720e03e 100644
+--- a/src/prompts/planner_model.py
++++ b/src/prompts/planner_model.py
+@@ -11,6 +11,10 @@ class StepType(str, Enum):
+     RESEARCH = "research"
+     ANALYSIS = "analysis"
+     PROCESSING = "processing"
++    RESEARCHER_2 = "research_2"
++    RESEARCHER_3 = "research_3"
++    RESEARCHER_4 = "research_4"
++    RESEARCHER_5 = "research_5"
+ 
+ 
+ class Step(BaseModel):

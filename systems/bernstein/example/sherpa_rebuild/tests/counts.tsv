@@ -1,0 +1,9 @@
+branch	kernel(files/hunks/+/-)	rules(files/hunks/+/-)	declaration(files/hunks/+/-)	compiler(files/hunks/+/-)	tests(files/hunks/+/-)	docs(files/hunks/+/-)	all
+scenario-1-add-role	0/0/0/0	0/0/0/0	3/4/54/1	0/0/0/0	0/0/0/0	0/0/0/0	3/4/54/1	cards 2 files +45 -0
+scenario-2-remove-role	0/0/0/0	0/0/0/0	3/5/1/54	0/0/0/0	0/0/0/0	0/0/0/0	3/5/1/54	cards 2 files +0 -45
+scenario-3-narrow-permission	0/0/0/0	0/0/0/0	1/1/1/1	0/0/0/0	0/0/0/0	0/0/0/0	1/1/1/1	cards 0 files +0 -0
+scenario-4-add-rule	0/0/0/0	0/0/0/0	1/1/1/1	0/0/0/0	0/0/0/0	0/0/0/0	1/1/1/1	cards 0 files +0 -0
+scenario-5-remove-rule	0/0/0/0	0/0/0/0	1/1/1/1	0/0/0/0	0/0/0/0	0/0/0/0	1/1/1/1	cards 0 files +0 -0
+scenario-6-add-layer	0/0/0/0	0/0/0/0	3/4/167/18	0/0/0/0	0/0/0/0	0/0/0/0	3/4/167/18	cards 2 files +141 -0
+scenario-7-add-nesting	0/0/0/0	0/0/0/0	3/4/53/1	0/0/0/0	0/0/0/0	0/0/0/0	3/4/53/1	cards 2 files +44 -0
+scenario-8-composite	0/0/0/0	0/0/0/0	4/5/55/2	0/0/0/0	0/0/0/0	0/0/0/0	4/5/55/2	cards 2 files +45 -0

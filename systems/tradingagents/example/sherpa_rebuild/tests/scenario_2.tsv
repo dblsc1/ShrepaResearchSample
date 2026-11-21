@@ -1,0 +1,5 @@
+case	given	who	does	on	args	expect	rule	source
+S2-1	@open ; @reports ; @debate ; @plan ; @trade ; @risk ; commit PM empty	portfolio_manager	debrief	PM		pass		test_allowed_full_run_reviews_with_the_two_remaining_analysts (one round): the decision after the aggressive and conservative analysts
+S2-2	@open ; @reports ; @debate ; @plan ; @trade ; @risk	portfolio_manager	dispatch	neutral_analyst	after CO	block	classic_lifecycle.not_your_lower	test_rejected_the_neutral_analyst_is_never_reached: the neutral analyst is no longer in the organization
+S2-3	@open ; @reports ; @debate ; @plan ; @trade ; AG = aggressive_analyst after TR by portfolio_manager ; start AG ; CO = conservative_analyst after AG by portfolio_manager ; brief CO	conservative_analyst	takeoff	CO		block	waits_for.not_ended	the remaining order still holds: conservative after aggressive
+S2-4	@open ; @reports ; @debate ; @plan ; @trade ; AG = aggressive_analyst after TR by portfolio_manager ; finish AG ; commit PM empty	portfolio_manager	debrief	PM		block	fixed_order.missing_lower	the remaining review still holds: the conservative analyst must have reviewed

@@ -1,0 +1,17 @@
+rule	human	cto	worker	reviewer	n_named	unresolved_locations
+kernel(Core)					0	
+base	C				1	
+classic_lifecycle					0	
+audit					0	
+claude_session					0	
+escalate					0	
+git					0	
+max_open_lowers					0	
+notify					0	
+parallel_wait_all					0	
+review_rules					0	
+task_card					0	
+waits_for					0	
+worklog					0	
+worktree					0	
+write_scope					0	

@@ -1,0 +1,11 @@
+# parallel_wait_all: a lower who dispatched tasks of their own debriefs only when all of them have ended.
+# Covers nesting: the cto hands its task back after its workers' tasks are closed or cancelled.
+name      = "parallel_wait_all"
+version   = "1"
+requires  = ["base", "classic_lifecycle"]
+after     = []
+conflicts = []
+group     = "classic_lifecycle_pack"
+writes    = []
+provides  = []
+reads     = ["archive"]

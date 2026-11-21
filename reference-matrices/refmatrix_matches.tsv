@@ -1,0 +1,368 @@
+system	rule	element	file	line	bucket	in_own_definition
+TradingAgents	R1	Aggressive Analyst	TradingAgents/original/tradingagents/graph/conditional_logic.py	33	源码	否
+TradingAgents	R1	Aggressive Analyst	TradingAgents/original/tradingagents/graph/setup.py	176	源码	否
+TradingAgents	R1	Aggressive Analyst	TradingAgents/original/tradingagents/graph/setup.py	178	源码	否
+TradingAgents	R1	Conservative Analyst	TradingAgents/original/tradingagents/graph/conditional_logic.py	30	源码	否
+TradingAgents	R1	Conservative Analyst	TradingAgents/original/tradingagents/graph/setup.py	178	源码	否
+TradingAgents	R1	Neutral Analyst	TradingAgents/original/tradingagents/graph/conditional_logic.py	32	源码	否
+TradingAgents	R1	Neutral Analyst	TradingAgents/original/tradingagents/graph/setup.py	178	源码	否
+TradingAgents	R1	Portfolio Manager	TradingAgents/original/tradingagents/graph/conditional_logic.py	28	源码	否
+TradingAgents	R1	Portfolio Manager	TradingAgents/original/tradingagents/graph/setup.py	185	源码	否
+TradingAgents	R1	Trader	TradingAgents/original/tradingagents/graph/setup.py	176	源码	否
+TradingAgents	R2	Bear Researcher	TradingAgents/original/tradingagents/graph/conditional_logic.py	20	源码	否
+TradingAgents	R2	Bear Researcher	TradingAgents/original/tradingagents/graph/setup.py	169	源码	否
+TradingAgents	R2	Bull Researcher	TradingAgents/original/tradingagents/graph/conditional_logic.py	21	源码	否
+TradingAgents	R2	Bull Researcher	TradingAgents/original/tradingagents/graph/setup.py	166	源码	否
+TradingAgents	R2	Bull Researcher	TradingAgents/original/tradingagents/graph/setup.py	169	源码	否
+TradingAgents	R2	Research Manager	TradingAgents/original/tradingagents/graph/conditional_logic.py	18	源码	否
+TradingAgents	R2	Research Manager	TradingAgents/original/tradingagents/graph/setup.py	175	源码	否
+TradingAgents	R2	Trader	TradingAgents/original/tradingagents/graph/setup.py	175	源码	否
+TradingAgents	R3	Fundamentals Analyst	TradingAgents/original/tradingagents/graph/analyst_execution.py	42	源码	否
+TradingAgents	R3	Market Analyst	TradingAgents/original/tradingagents/graph/analyst_execution.py	23	源码	否
+TradingAgents	R3	News Analyst	TradingAgents/original/tradingagents/graph/analyst_execution.py	36	源码	否
+TradingAgents	R3	Sentiment Analyst	TradingAgents/original/tradingagents/graph/analyst_execution.py	31	源码	否
+TradingAgents	R3	fundamentals	TradingAgents/original/tradingagents/graph/analyst_execution.py	40	源码	否
+TradingAgents	R3	fundamentals	TradingAgents/original/tradingagents/graph/analyst_execution.py	41	源码	否
+TradingAgents	R3	market	TradingAgents/original/tradingagents/graph/analyst_execution.py	21	源码	否
+TradingAgents	R3	market	TradingAgents/original/tradingagents/graph/analyst_execution.py	22	源码	否
+TradingAgents	R3	news	TradingAgents/original/tradingagents/graph/analyst_execution.py	34	源码	否
+TradingAgents	R3	news	TradingAgents/original/tradingagents/graph/analyst_execution.py	35	源码	否
+TradingAgents	R3	social	TradingAgents/original/tradingagents/graph/analyst_execution.py	27	源码	否
+TradingAgents	R3	social	TradingAgents/original/tradingagents/graph/analyst_execution.py	30	源码	否
+TradingAgents	R7	Aggressive Analyst	TradingAgents/original/tradingagents/graph/conditional_logic.py	33	源码	否
+TradingAgents	R7	Bear Researcher	TradingAgents/original/tradingagents/graph/conditional_logic.py	20	源码	否
+TradingAgents	R7	Bull Researcher	TradingAgents/original/tradingagents/graph/conditional_logic.py	21	源码	否
+TradingAgents	R7	Conservative Analyst	TradingAgents/original/tradingagents/graph/conditional_logic.py	30	源码	否
+TradingAgents	R7	Neutral Analyst	TradingAgents/original/tradingagents/graph/conditional_logic.py	32	源码	否
+TradingAgents	R7	Portfolio Manager	TradingAgents/original/tradingagents/graph/conditional_logic.py	28	源码	否
+TradingAgents	R7	Research Manager	TradingAgents/original/tradingagents/graph/conditional_logic.py	18	源码	否
+TradingAgents	R9	Bull Researcher	TradingAgents/original/tradingagents/graph/setup.py	166	源码	否
+TradingAgents	R9	Memory Log	TradingAgents/original/tradingagents/graph/setup.py	162	源码	否
+TradingAgents	R9	Memory Log	TradingAgents/original/tradingagents/graph/setup.py	163	源码	否
+TradingAgents_eq	base	human	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/base/flow.tsv	3	声明或配置	否
+TradingAgents_eq	base	human	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/base/roles.tsv	3	声明或配置	否
+TradingAgents_eq	fixed_order	aggressive_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	122	声明或配置	否
+TradingAgents_eq	fixed_order	bear_researcher	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	122	声明或配置	否
+TradingAgents_eq	fixed_order	bull_researcher	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	122	声明或配置	否
+TradingAgents_eq	fixed_order	conservative_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	122	声明或配置	否
+TradingAgents_eq	fixed_order	fundamentals_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	122	声明或配置	否
+TradingAgents_eq	fixed_order	market_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	122	声明或配置	否
+TradingAgents_eq	fixed_order	memory_log	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	122	声明或配置	否
+TradingAgents_eq	fixed_order	neutral_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	122	声明或配置	否
+TradingAgents_eq	fixed_order	news_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	122	声明或配置	否
+TradingAgents_eq	fixed_order	portfolio_manager	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	122	声明或配置	否
+TradingAgents_eq	fixed_order	research_manager	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	122	声明或配置	否
+TradingAgents_eq	fixed_order	sentiment_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	122	声明或配置	否
+TradingAgents_eq	fixed_order	trader	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	122	声明或配置	否
+TradingAgents_eq	reopen_limit	aggressive_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	130	声明或配置	否
+TradingAgents_eq	reopen_limit	bear_researcher	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	130	声明或配置	否
+TradingAgents_eq	reopen_limit	bull_researcher	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	130	声明或配置	否
+TradingAgents_eq	reopen_limit	conservative_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	130	声明或配置	否
+TradingAgents_eq	reopen_limit	fundamentals_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	130	声明或配置	否
+TradingAgents_eq	reopen_limit	market_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	130	声明或配置	否
+TradingAgents_eq	reopen_limit	memory_log	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	130	声明或配置	否
+TradingAgents_eq	reopen_limit	neutral_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	130	声明或配置	否
+TradingAgents_eq	reopen_limit	news_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	130	声明或配置	否
+TradingAgents_eq	reopen_limit	portfolio_manager	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	130	声明或配置	否
+TradingAgents_eq	reopen_limit	research_manager	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	130	声明或配置	否
+TradingAgents_eq	reopen_limit	sentiment_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	130	声明或配置	否
+TradingAgents_eq	reopen_limit	trader	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	130	声明或配置	否
+TradingAgents_eq	seat_write_limit	fundamentals_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	126	声明或配置	否
+TradingAgents_eq	seat_write_limit	market_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	126	声明或配置	否
+TradingAgents_eq	seat_write_limit	news_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	126	声明或配置	否
+TradingAgents_eq	seat_write_limit	sentiment_analyst	_companion/results/coupling/.tree_TradingAgents_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestTradingAgents/PPOtestTradingAgents.toml	126	声明或配置	否
+bernstein	R09	manager	bernstein/original/src/bernstein/core/identity/agent_jwt.py	201	源码	否
+bernstein	R11	backend	bernstein/original/src/bernstein/core/identity/agent_jwt.py	122	源码	否
+bernstein	R11	devops	bernstein/original/src/bernstein/core/identity/agent_jwt.py	161	源码	否
+bernstein	R11	frontend	bernstein/original/src/bernstein/core/identity/agent_jwt.py	132	源码	否
+bernstein	R11	manager	bernstein/original/src/bernstein/core/identity/agent_jwt.py	111	源码	否
+bernstein	R11	qa	bernstein/original/src/bernstein/core/identity/agent_jwt.py	142	源码	否
+bernstein	R11	security	bernstein/original/src/bernstein/core/identity/agent_jwt.py	151	源码	否
+bernstein	R19	manager	bernstein/original/src/bernstein/core/tasks/task_store_core.py	2399	源码	否
+bernstein	R20	manager	bernstein/original/src/bernstein/core/agents/spawner_core.py	433	源码	否
+bernstein	R29	architect	bernstein/original/src/bernstein/core/security/permissions.py	194	源码	否
+bernstein	R29	backend	bernstein/original/src/bernstein/core/security/permissions.py	156	源码	否
+bernstein	R29	devops	bernstein/original/src/bernstein/core/security/permissions.py	172	源码	否
+bernstein	R29	docs	bernstein/original/src/bernstein/core/security/permissions.py	185	源码	否
+bernstein	R29	frontend	bernstein/original/src/bernstein/core/security/permissions.py	160	源码	否
+bernstein	R29	manager	bernstein/original/src/bernstein/core/security/permissions.py	189	源码	否
+bernstein	R29	qa	bernstein/original/src/bernstein/core/security/permissions.py	164	源码	否
+bernstein	R29	security	bernstein/original/src/bernstein/core/security/permissions.py	168	源码	否
+bernstein	R37	architect	bernstein/original/src/bernstein/core/planning/workflow.py	126	源码	否
+bernstein	R37	architect	bernstein/original/src/bernstein/core/planning/workflow.py	142	源码	否
+bernstein	R37	manager	bernstein/original/src/bernstein/core/planning/workflow.py	126	源码	否
+bernstein	R37	manager	bernstein/original/src/bernstein/core/planning/workflow.py	142	源码	否
+bernstein	R37	manager	bernstein/original/src/bernstein/core/planning/workflow.py	148	源码	否
+bernstein	R37	qa	bernstein/original/src/bernstein/core/planning/workflow.py	137	源码	否
+bernstein	R37	security	bernstein/original/src/bernstein/core/planning/workflow.py	137	源码	否
+bernstein	R46	docs	bernstein/original/src/bernstein/adapters/claude.py	315	源码	否
+bernstein	R46	qa	bernstein/original/src/bernstein/adapters/claude.py	313	源码	否
+bernstein	R46	reviewer	bernstein/original/src/bernstein/adapters/claude.py	314	源码	否
+bernstein	R46	security	bernstein/original/src/bernstein/adapters/claude.py	316	源码	否
+bernstein_eq	base	human	_companion/results/coupling/.tree_bernstein_eq/SherpaPolicyPackOrganizer/base/flow.tsv	3	声明或配置	否
+bernstein_eq	base	human	_companion/results/coupling/.tree_bernstein_eq/SherpaPolicyPackOrganizer/base/roles.tsv	3	声明或配置	否
+bernstein_eq	must_decompose	manager	_companion/results/coupling/.tree_bernstein_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestBernstein/PPOtestBernstein.toml	86	声明或配置	否
+bernstein_eq	parallel_wait_all	manager	_companion/results/coupling/.tree_bernstein_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestBernstein/PPOtestBernstein.toml	92	声明或配置	否
+bernstein_eq	seat_write_limit	architect	_companion/results/coupling/.tree_bernstein_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestBernstein/PPOtestBernstein.toml	82	声明或配置	否
+bernstein_eq	seat_write_limit	backend	_companion/results/coupling/.tree_bernstein_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestBernstein/PPOtestBernstein.toml	82	声明或配置	否
+bernstein_eq	seat_write_limit	devops	_companion/results/coupling/.tree_bernstein_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestBernstein/PPOtestBernstein.toml	82	声明或配置	否
+bernstein_eq	seat_write_limit	docs	_companion/results/coupling/.tree_bernstein_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestBernstein/PPOtestBernstein.toml	82	声明或配置	否
+bernstein_eq	seat_write_limit	frontend	_companion/results/coupling/.tree_bernstein_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestBernstein/PPOtestBernstein.toml	82	声明或配置	否
+bernstein_eq	seat_write_limit	manager	_companion/results/coupling/.tree_bernstein_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestBernstein/PPOtestBernstein.toml	82	声明或配置	否
+bernstein_eq	seat_write_limit	qa	_companion/results/coupling/.tree_bernstein_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestBernstein/PPOtestBernstein.toml	82	声明或配置	否
+bernstein_eq	seat_write_limit	security	_companion/results/coupling/.tree_bernstein_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestBernstein/PPOtestBernstein.toml	82	声明或配置	否
+chatdev	C1	Chief Executive Officer	chatdev/original/yaml_instance/ChatDev_v1.yaml	118	声明或配置	是
+chatdev	C1	Chief Product Officer	chatdev/original/yaml_instance/ChatDev_v1.yaml	278	声明或配置	是
+chatdev	C1	Code Reviewer	chatdev/original/yaml_instance/ChatDev_v1.yaml	373	声明或配置	是
+chatdev	C1	Programmer Code Complete	chatdev/original/yaml_instance/ChatDev_v1.yaml	180	声明或配置	是
+chatdev	C1	Programmer Code Review	chatdev/original/yaml_instance/ChatDev_v1.yaml	52	声明或配置	是
+chatdev	C1	Programmer Coding	chatdev/original/yaml_instance/ChatDev_v1.yaml	228	声明或配置	是
+chatdev	C1	Programmer Test Error Summary	chatdev/original/yaml_instance/ChatDev_v1.yaml	337	声明或配置	是
+chatdev	C1	Programmer Test Modification	chatdev/original/yaml_instance/ChatDev_v1.yaml	85	声明或配置	是
+chatdev	C1	Software Test Engineer	chatdev/original/yaml_instance/ChatDev_v1.yaml	478	声明或配置	是
+chatdev	C4	Chief Executive Officer	chatdev/original/yaml_instance/ChatDev_v1.yaml	853	声明或配置	否
+chatdev	C4	Chief Executive Officer	chatdev/original/yaml_instance/ChatDev_v1.yaml	871	声明或配置	否
+chatdev	C4	Chief Executive Officer	chatdev/original/yaml_instance/ChatDev_v1.yaml	889	声明或配置	否
+chatdev	C4	Chief Executive Officer	chatdev/original/yaml_instance/ChatDev_v1.yaml	956	声明或配置	否
+chatdev	C4	Chief Executive Officer	chatdev/original/yaml_instance/ChatDev_v1.yaml	965	声明或配置	否
+chatdev	C4	Chief Product Officer	chatdev/original/yaml_instance/ChatDev_v1.yaml	862	声明或配置	否
+chatdev	C4	Chief Product Officer	chatdev/original/yaml_instance/ChatDev_v1.yaml	880	声明或配置	否
+chatdev	C4	Chief Product Officer	chatdev/original/yaml_instance/ChatDev_v1.yaml	888	声明或配置	否
+chatdev	C4	Chief Product Officer	chatdev/original/yaml_instance/ChatDev_v1.yaml	966	声明或配置	否
+chatdev	C4	Chief Product Officer	chatdev/original/yaml_instance/ChatDev_v1.yaml	975	声明或配置	否
+chatdev	C4	Code Complete All Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	521	声明或配置	否
+chatdev	C4	Code Complete All Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	527	声明或配置	否
+chatdev	C4	Code Complete All Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	541	声明或配置	否
+chatdev	C4	Code Complete Phase for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	514	声明或配置	否
+chatdev	C4	Code Complete Phase for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	528	声明或配置	否
+chatdev	C4	Code Complete Phase for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	535	声明或配置	否
+chatdev	C4	Code Complete Phase for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	807	声明或配置	否
+chatdev	C4	Code Review Comment Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	542	声明或配置	否
+chatdev	C4	Code Review Comment Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	569	声明或配置	否
+chatdev	C4	Code Review Comment Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	587	声明或配置	否
+chatdev	C4	Code Review Comment Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	595	声明或配置	否
+chatdev	C4	Code Review Comment Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	816	声明或配置	否
+chatdev	C4	Code Review Comment Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	941	声明或配置	否
+chatdev	C4	Code Review Modification Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	551	声明或配置	否
+chatdev	C4	Code Review Modification Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	649	声明或配置	否
+chatdev	C4	Code Review Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	578	声明或配置	否
+chatdev	C4	Code Review Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	586	声明或配置	否
+chatdev	C4	Code Review Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	631	声明或配置	否
+chatdev	C4	Code Reviewer	chatdev/original/yaml_instance/ChatDev_v1.yaml	550	声明或配置	否
+chatdev	C4	Code Reviewer	chatdev/original/yaml_instance/ChatDev_v1.yaml	559	声明或配置	否
+chatdev	C4	Code Reviewer	chatdev/original/yaml_instance/ChatDev_v1.yaml	763	声明或配置	否
+chatdev	C4	Code Reviewer	chatdev/original/yaml_instance/ChatDev_v1.yaml	817	声明或配置	否
+chatdev	C4	Code Reviewer	chatdev/original/yaml_instance/ChatDev_v1.yaml	924	声明或配置	否
+chatdev	C4	Coding Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	506	声明或配置	否
+chatdev	C4	FINAL	chatdev/original/yaml_instance/ChatDev_v1.yaml	898	声明或配置	否
+chatdev	C4	Manual Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	897	声明或配置	否
+chatdev	C4	Manual Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	957	声明或配置	否
+chatdev	C4	Manual Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	974	声明或配置	否
+chatdev	C4	Manual Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	861	声明或配置	否
+chatdev	C4	Manual Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	916	声明或配置	否
+chatdev	C4	Manual Phase Prompt for User	chatdev/original/yaml_instance/ChatDev_v1.yaml	852	声明或配置	否
+chatdev	C4	Manual Phase Prompt for User	chatdev/original/yaml_instance/ChatDev_v1.yaml	907	声明或配置	否
+chatdev	C4	PSEUDO	chatdev/original/yaml_instance/ChatDev_v1.yaml	704	声明或配置	否
+chatdev	C4	PSEUDO	chatdev/original/yaml_instance/ChatDev_v1.yaml	713	声明或配置	否
+chatdev	C4	PSEUDO	chatdev/original/yaml_instance/ChatDev_v1.yaml	729	声明或配置	否
+chatdev	C4	PSEUDO	chatdev/original/yaml_instance/ChatDev_v1.yaml	825	声明或配置	否
+chatdev	C4	PSEUDO	chatdev/original/yaml_instance/ChatDev_v1.yaml	834	声明或配置	否
+chatdev	C4	PSEUDO	chatdev/original/yaml_instance/ChatDev_v1.yaml	906	声明或配置	否
+chatdev	C4	PSEUDO	chatdev/original/yaml_instance/ChatDev_v1.yaml	915	声明或配置	否
+chatdev	C4	Programmer Code Complete	chatdev/original/yaml_instance/ChatDev_v1.yaml	520	声明或配置	否
+chatdev	C4	Programmer Code Complete	chatdev/original/yaml_instance/ChatDev_v1.yaml	534	声明或配置	否
+chatdev	C4	Programmer Code Complete	chatdev/original/yaml_instance/ChatDev_v1.yaml	754	声明或配置	否
+chatdev	C4	Programmer Code Complete	chatdev/original/yaml_instance/ChatDev_v1.yaml	808	声明或配置	否
+chatdev	C4	Programmer Code Complete	chatdev/original/yaml_instance/ChatDev_v1.yaml	940	声明或配置	否
+chatdev	C4	Programmer Code Review	chatdev/original/yaml_instance/ChatDev_v1.yaml	560	声明或配置	否
+chatdev	C4	Programmer Code Review	chatdev/original/yaml_instance/ChatDev_v1.yaml	568	声明或配置	否
+chatdev	C4	Programmer Code Review	chatdev/original/yaml_instance/ChatDev_v1.yaml	577	声明或配置	否
+chatdev	C4	Programmer Code Review	chatdev/original/yaml_instance/ChatDev_v1.yaml	596	声明或配置	否
+chatdev	C4	Programmer Code Review	chatdev/original/yaml_instance/ChatDev_v1.yaml	650	声明或配置	否
+chatdev	C4	Programmer Code Review	chatdev/original/yaml_instance/ChatDev_v1.yaml	772	声明或配置	否
+chatdev	C4	Programmer Coding	chatdev/original/yaml_instance/ChatDev_v1.yaml	507	声明或配置	否
+chatdev	C4	Programmer Coding	chatdev/original/yaml_instance/ChatDev_v1.yaml	513	声明或配置	否
+chatdev	C4	Programmer Coding	chatdev/original/yaml_instance/ChatDev_v1.yaml	745	声明或配置	否
+chatdev	C4	Programmer Test Error Summary	chatdev/original/yaml_instance/ChatDev_v1.yaml	605	声明或配置	否
+chatdev	C4	Programmer Test Error Summary	chatdev/original/yaml_instance/ChatDev_v1.yaml	622	声明或配置	否
+chatdev	C4	Programmer Test Error Summary	chatdev/original/yaml_instance/ChatDev_v1.yaml	640	声明或配置	否
+chatdev	C4	Programmer Test Error Summary	chatdev/original/yaml_instance/ChatDev_v1.yaml	781	声明或配置	否
+chatdev	C4	Programmer Test Error Summary	chatdev/original/yaml_instance/ChatDev_v1.yaml	843	声明或配置	否
+chatdev	C4	Programmer Test Modification	chatdev/original/yaml_instance/ChatDev_v1.yaml	614	声明或配置	否
+chatdev	C4	Programmer Test Modification	chatdev/original/yaml_instance/ChatDev_v1.yaml	623	声明或配置	否
+chatdev	C4	Programmer Test Modification	chatdev/original/yaml_instance/ChatDev_v1.yaml	667	声明或配置	否
+chatdev	C4	Programmer Test Modification	chatdev/original/yaml_instance/ChatDev_v1.yaml	686	声明或配置	否
+chatdev	C4	Programmer Test Modification	chatdev/original/yaml_instance/ChatDev_v1.yaml	695	声明或配置	否
+chatdev	C4	Programmer Test Modification	chatdev/original/yaml_instance/ChatDev_v1.yaml	712	声明或配置	否
+chatdev	C4	Programmer Test Modification	chatdev/original/yaml_instance/ChatDev_v1.yaml	799	声明或配置	否
+chatdev	C4	Programmer Test Modification	chatdev/original/yaml_instance/ChatDev_v1.yaml	984	声明或配置	否
+chatdev	C4	Software Test Engineer	chatdev/original/yaml_instance/ChatDev_v1.yaml	1002	声明或配置	否
+chatdev	C4	Software Test Engineer	chatdev/original/yaml_instance/ChatDev_v1.yaml	668	声明或配置	否
+chatdev	C4	Software Test Engineer	chatdev/original/yaml_instance/ChatDev_v1.yaml	676	声明或配置	否
+chatdev	C4	Software Test Engineer	chatdev/original/yaml_instance/ChatDev_v1.yaml	685	声明或配置	否
+chatdev	C4	Software Test Engineer	chatdev/original/yaml_instance/ChatDev_v1.yaml	728	声明或配置	否
+chatdev	C4	Software Test Engineer	chatdev/original/yaml_instance/ChatDev_v1.yaml	790	声明或配置	否
+chatdev	C4	Software Test Engineer	chatdev/original/yaml_instance/ChatDev_v1.yaml	993	声明或配置	否
+chatdev	C4	Test Error Summary Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	1001	声明或配置	否
+chatdev	C4	Test Error Summary Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	604	声明或配置	否
+chatdev	C4	Test Error Summary Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	613	声明或配置	否
+chatdev	C4	Test Error Summary Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	632	声明或配置	否
+chatdev	C4	Test Error Summary Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	659	声明或配置	否
+chatdev	C4	Test Error Summary Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	826	声明或配置	否
+chatdev	C4	Test Error Summary Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	925	声明或配置	否
+chatdev	C4	Test Modification Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	677	声明或配置	否
+chatdev	C4	Test Modification Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	694	声明或配置	否
+chatdev	C4	Test Modification Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	703	声明或配置	否
+chatdev	C4	Test Modification Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	641	声明或配置	否
+chatdev	C4	Test Modification Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	983	声明或配置	否
+chatdev	C4	Test Modification Phase Prompt for User	chatdev/original/yaml_instance/ChatDev_v1.yaml	844	声明或配置	否
+chatdev	C4	Test Modification Phase Prompt for User	chatdev/original/yaml_instance/ChatDev_v1.yaml	992	声明或配置	否
+chatdev	C4	Test Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	658	声明或配置	否
+chatdev	C4	Test Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	835	声明或配置	否
+chatdev	C4	USER	chatdev/original/yaml_instance/ChatDev_v1.yaml	744	声明或配置	否
+chatdev	C4	USER	chatdev/original/yaml_instance/ChatDev_v1.yaml	753	声明或配置	否
+chatdev	C4	USER	chatdev/original/yaml_instance/ChatDev_v1.yaml	762	声明或配置	否
+chatdev	C4	USER	chatdev/original/yaml_instance/ChatDev_v1.yaml	771	声明或配置	否
+chatdev	C4	USER	chatdev/original/yaml_instance/ChatDev_v1.yaml	780	声明或配置	否
+chatdev	C4	USER	chatdev/original/yaml_instance/ChatDev_v1.yaml	789	声明或配置	否
+chatdev	C4	USER	chatdev/original/yaml_instance/ChatDev_v1.yaml	798	声明或配置	否
+chatdev	C4	USER	chatdev/original/yaml_instance/ChatDev_v1.yaml	870	声明或配置	否
+chatdev	C4	USER	chatdev/original/yaml_instance/ChatDev_v1.yaml	879	声明或配置	否
+chatdev	C5	Code Review Comment Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	941	声明或配置	否
+chatdev	C5	Code Reviewer	chatdev/original/yaml_instance/ChatDev_v1.yaml	924	声明或配置	否
+chatdev	C5	PSEUDO	chatdev/original/yaml_instance/ChatDev_v1.yaml	713	声明或配置	否
+chatdev	C5	PSEUDO	chatdev/original/yaml_instance/ChatDev_v1.yaml	729	声明或配置	否
+chatdev	C5	Programmer Code Complete	chatdev/original/yaml_instance/ChatDev_v1.yaml	940	声明或配置	否
+chatdev	C5	Programmer Test Modification	chatdev/original/yaml_instance/ChatDev_v1.yaml	712	声明或配置	否
+chatdev	C5	Software Test Engineer	chatdev/original/yaml_instance/ChatDev_v1.yaml	728	声明或配置	否
+chatdev	C5	Test Error Summary Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	925	声明或配置	否
+chatdev	C6	Chief Executive Officer	chatdev/original/yaml_instance/ChatDev_v1.yaml	956	声明或配置	否
+chatdev	C6	Chief Product Officer	chatdev/original/yaml_instance/ChatDev_v1.yaml	975	声明或配置	否
+chatdev	C6	Code Complete All Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	12	声明或配置	是
+chatdev	C6	Code Complete All Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	521	声明或配置	否
+chatdev	C6	Code Complete All Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	527	声明或配置	否
+chatdev	C6	Code Complete All Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	541	声明或配置	否
+chatdev	C6	Code Complete Phase for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	528	声明或配置	否
+chatdev	C6	Code Review Comment Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	542	声明或配置	否
+chatdev	C6	Code Review Comment Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	587	声明或配置	否
+chatdev	C6	Code Review Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	500	声明或配置	是
+chatdev	C6	Code Review Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	578	声明或配置	否
+chatdev	C6	Code Review Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	586	声明或配置	否
+chatdev	C6	Code Review Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	631	声明或配置	否
+chatdev	C6	FINAL	chatdev/original/yaml_instance/ChatDev_v1.yaml	898	声明或配置	否
+chatdev	C6	Manual Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	355	声明或配置	是
+chatdev	C6	Manual Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	897	声明或配置	否
+chatdev	C6	Manual Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	957	声明或配置	否
+chatdev	C6	Manual Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	974	声明或配置	否
+chatdev	C6	PSEUDO	chatdev/original/yaml_instance/ChatDev_v1.yaml	704	声明或配置	否
+chatdev	C6	PSEUDO	chatdev/original/yaml_instance/ChatDev_v1.yaml	834	声明或配置	否
+chatdev	C6	Programmer Code Complete	chatdev/original/yaml_instance/ChatDev_v1.yaml	520	声明或配置	否
+chatdev	C6	Programmer Code Review	chatdev/original/yaml_instance/ChatDev_v1.yaml	577	声明或配置	否
+chatdev	C6	Programmer Test Modification	chatdev/original/yaml_instance/ChatDev_v1.yaml	695	声明或配置	否
+chatdev	C6	Software Test Engineer	chatdev/original/yaml_instance/ChatDev_v1.yaml	676	声明或配置	否
+chatdev	C6	Test Error Summary Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	632	声明或配置	否
+chatdev	C6	Test Error Summary Phase Prompt for Assistant	chatdev/original/yaml_instance/ChatDev_v1.yaml	659	声明或配置	否
+chatdev	C6	Test Modification Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	161	声明或配置	是
+chatdev	C6	Test Modification Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	677	声明或配置	否
+chatdev	C6	Test Modification Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	694	声明或配置	否
+chatdev	C6	Test Modification Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	703	声明或配置	否
+chatdev	C6	Test Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	20	声明或配置	是
+chatdev	C6	Test Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	658	声明或配置	否
+chatdev	C6	Test Phase Loop Counter	chatdev/original/yaml_instance/ChatDev_v1.yaml	835	声明或配置	否
+chatdev_eq	base	human	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/base/flow.tsv	3	声明或配置	否
+chatdev_eq	base	human	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/base/roles.tsv	3	声明或配置	否
+chatdev_eq	reopen_limit	chief_executive_officer	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	87	声明或配置	否
+chatdev_eq	reopen_limit	chief_product_officer	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	87	声明或配置	否
+chatdev_eq	reopen_limit	code_reviewer	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	87	声明或配置	否
+chatdev_eq	reopen_limit	programmer_code_complete	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	87	声明或配置	否
+chatdev_eq	reopen_limit	programmer_code_review	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	87	声明或配置	否
+chatdev_eq	reopen_limit	programmer_test_modification	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	87	声明或配置	否
+chatdev_eq	reopen_limit	software_test_engineer	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	87	声明或配置	否
+chatdev_eq	seat_precedence	chief_executive_officer	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	90	声明或配置	否
+chatdev_eq	seat_precedence	chief_product_officer	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	90	声明或配置	否
+chatdev_eq	seat_precedence	code_reviewer	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	90	声明或配置	否
+chatdev_eq	seat_precedence	programmer_code_complete	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	90	声明或配置	否
+chatdev_eq	seat_precedence	programmer_code_review	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	90	声明或配置	否
+chatdev_eq	seat_precedence	programmer_coding	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	90	声明或配置	否
+chatdev_eq	seat_precedence	programmer_test_error_summary	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	90	声明或配置	否
+chatdev_eq	seat_precedence	programmer_test_modification	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	90	声明或配置	否
+chatdev_eq	seat_precedence	software_test_engineer	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	90	声明或配置	否
+chatdev_eq	seat_write_limit	code_reviewer	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	84	声明或配置	否
+chatdev_eq	seat_write_limit	programmer_test_error_summary	_companion/results/coupling/.tree_chatdev_eq/SherpaPolicyPackOrganizer/custom_lifecycle/PPOtestChatDevV1/PPOtestChatDevV1.toml	84	声明或配置	否
+paperclip	P011	ceo	paperclip/original/server/src/services/authorization.ts	2697	源码	否
+paperclip	P038	board	paperclip/original/server/src/services/agent-interaction-permissions.ts	32	源码	否
+paperclip	P038	board	paperclip/original/server/src/services/agent-project-access.ts	27	源码	否
+paperclip	P043	board	paperclip/original/server/src/routes/access.ts	3001	源码	否
+paperclip	P043	board	paperclip/original/server/src/routes/company-skill-policy.ts	45	源码	否
+paperclip	P043	board	paperclip/original/server/src/routes/inbox-agent-policy.ts	21	源码	否
+paperclip	P044	board	paperclip/original/server/src/routes/llms.ts	23	源码	否
+paperclip	P044	board	paperclip/original/server/src/routes/teams-catalog.ts	39	源码	否
+paperclip	P044	ceo	paperclip/original/server/src/lib/agent-permissions.ts	117	源码	否
+paperclip	P044	ceo	paperclip/original/server/src/lib/agent-permissions.ts	76	源码	否
+paperclip	P045	board	paperclip/original/server/src/routes/issues.ts	5016	源码	否
+paperclip	P045	ceo	paperclip/original/server/src/routes/issues.ts	5027	源码	否
+paperclip	P069	board	paperclip/original/server/src/services/authorization.ts	2778	源码	否
+paperclip	P069	board	paperclip/original/server/src/services/authorization.ts	2847	源码	否
+paperclip	P070	board	paperclip/original/server/src/services/authorization.ts	2979	源码	否
+paperclip	P070	board	paperclip/original/server/src/services/authorization.ts	583	源码	否
+paperclip	P070	board	paperclip/original/server/src/services/authorization.ts	601	源码	否
+paperclip	P070	board	paperclip/original/server/src/services/authorization.ts	668	源码	否
+paperclip	P070	board	paperclip/original/server/src/services/authorization.ts	683	源码	否
+paperclip	P071	board	paperclip/original/server/src/services/authorization.ts	2926	源码	否
+paperclip	P089	board	paperclip/original/server/src/routes/issues.ts	15130	源码	否
+paperclip	P089	board	paperclip/original/server/src/routes/issues.ts	19987	源码	否
+paperclip	P095	board	paperclip/original/server/src/routes/issues.ts	15304	源码	否
+paperclip	P095	board	paperclip/original/server/src/routes/issues.ts	15310	源码	否
+paperclip	P095	board	paperclip/original/server/src/routes/issues.ts	15334	源码	否
+paperclip	P097	board	paperclip/original/server/src/routes/issues.ts	15255	源码	否
+paperclip	P101	board	paperclip/original/server/src/services/issue-monitors.ts	39	源码	否
+paperclip	P111	board	paperclip/original/server/src/routes/issues.ts	10630	源码	否
+paperclip	P122	board	paperclip/original/server/src/routes/issues.ts	7102	源码	否
+paperclip	P123	board	paperclip/original/server/src/routes/issues.ts	5363	源码	否
+paperclip	P124	board	paperclip/original/server/src/routes/issues.ts	5363	源码	否
+paperclip	P167	board	paperclip/original/server/src/services/case-access.ts	110	源码	否
+paperclip	P167	board	paperclip/original/server/src/services/case-access.ts	112	源码	否
+paperclip	P168	board	paperclip/original/server/src/services/case-access.ts	222	源码	否
+paperclip	P181	board	paperclip/original/server/src/routes/agents.ts	1789	源码	否
+paperclip	P182	board	paperclip/original/server/src/routes/agents.ts	6046	源码	否
+paperclip	P188	board	paperclip/original/server/src/routes/costs.ts	361	源码	否
+paperclip	P188	board	paperclip/original/server/src/routes/costs.ts	374	源码	否
+paperclip	P188	board	paperclip/original/server/src/routes/costs.ts	402	源码	否
+paperclip	P188	board	paperclip/original/server/src/routes/costs.ts	424	源码	否
+paperclip	P188	board	paperclip/original/server/src/routes/costs.ts	424	源码	否
+paperclip	P189	ceo	paperclip/original/server/src/routes/agents.ts	5045	源码	否
+paperclip	P190	ceo	paperclip/original/server/src/routes/agents.ts	5063	源码	否
+paperclip	P194	board	paperclip/original/server/src/routes/agents.ts	5116	源码	否
+paperclip	P208	board	paperclip/original/server/src/routes/agents.ts	5987	源码	否
+paperclip	P217	ceo	paperclip/original/server/src/routes/access.ts	2276	源码	否
+paperclip	P217	general	paperclip/original/server/src/routes/access.ts	4247	源码	否
+paperclip	P220	board	paperclip/original/server/src/routes/access.ts	3027	源码	否
+paperclip	P220	ceo	paperclip/original/server/src/routes/access.ts	3022	源码	否
+paperclip	P222	board	paperclip/original/server/src/routes/companies.ts	367	源码	否
+paperclip	P222	ceo	paperclip/original/server/src/routes/companies.ts	376	源码	否
+paperclip	P223	board	paperclip/original/server/src/routes/routines.ts	112	源码	否
+paperclip	P223	board	paperclip/original/server/src/routes/routines.ts	123	源码	否
+paperclip	P224	board	paperclip/original/server/src/routes/routines.ts	385	源码	否
+paperclip	P226	board	paperclip/original/server/src/routes/projects.ts	189	源码	否
+paperclip	P228	board	paperclip/original/server/src/routes/projects.ts	69	源码	否
+paperclip	P242	board	paperclip/original/server/src/services/tool-action-review.ts	137	源码	否
+paperclip	P276	board	paperclip/original/server/src/services/company-skill-policy.ts	19	源码	否
+paperclip	P276	board	paperclip/original/server/src/services/skill-source-sync.ts	126	源码	否
+paperclip	P276	board	paperclip/original/server/src/services/skill-source-sync.ts	126	源码	否
+paperclip	P276	board	paperclip/original/server/src/services/skill-source-sync.ts	126	源码	否
+paperclip	P280	board	paperclip/original/server/src/services/project-git-authorization.ts	231	源码	否
+paperclip	P297	board	paperclip/original/server/src/routes/ai-connections.ts	131	源码	否
+paperclip	P304	board	paperclip/original/server/src/routes/built-in-agents.ts	98	源码	否
+paperclip	P305	board	paperclip/original/server/src/routes/summary-slots.ts	43	源码	否
+paperclip	P307	ceo	paperclip/original/server/src/routes/workspace-runtime-service-authz.ts	123	源码	否
+paperclip	P307	ceo	paperclip/original/server/src/routes/workspace-runtime-service-authz.ts	194	源码	否
+paperclip	P317	board	paperclip/original/server/src/services/agent-chat-messages.ts	151	源码	否
+paperclip	P323	board	paperclip/original/server/src/services/decisions.ts	124	源码	否
+paperclip	P333	board	paperclip/original/server/src/services/secrets.ts	1530	源码	否
+paperclip	P351	board	paperclip/original/server/src/services/connection-management.ts	296	源码	否
+paperclip	P358	board	paperclip/original/server/src/services/connection-intents.ts	1205	源码	否
+paperclip	P364	board	paperclip/original/server/src/services/execution-workspaces.ts	1692	源码	否
+paperclip	P393	board	paperclip/original/server/src/services/email-channels.ts	609	源码	否
+paperclip	P414	board	paperclip/original/server/src/services/voice/speko-agent-tools.ts	66	源码	否
+sherpa_group	base	human	_companion/results/coupling/.tree_sherpa_group/SherpaPolicyPackOrganizer/base/flow.tsv	3	声明或配置	否
+sherpa_group	base	human	_companion/results/coupling/.tree_sherpa_group/SherpaPolicyPackOrganizer/base/roles.tsv	3	声明或配置	否

@@ -1,0 +1,3 @@
+# The audit writer. Locked: a pack above may not re-point it.
+name	kind	impl	locked
+audit_git	audit_writer	audit_git.py	yes

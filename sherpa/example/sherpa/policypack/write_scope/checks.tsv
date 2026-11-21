@@ -1,0 +1,5 @@
+# Staged and committed files stay inside the card's writable paths; one active writer per branch (locked).
+command	check	stage	action	params	locked
+landing	write_scope	general	block	-	no
+debrief	write_scope	general	block	-	no
+*	one_active_writer_per_branch	builtin	block	active=onAir,landed	yes

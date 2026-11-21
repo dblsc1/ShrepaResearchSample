@@ -1,0 +1,7 @@
+rule	shared_rule	researcher	reporting_analyst	n_named	清单「点名」	对不上
+R01	order			0	-	
+R02	-			0	-	
+R03	-			0	-	
+R04	cap			0	-	
+R05	write			0	-	
+R06	order			0	-	

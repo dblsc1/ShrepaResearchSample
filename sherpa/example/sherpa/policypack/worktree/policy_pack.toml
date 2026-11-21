@@ -1,0 +1,10 @@
+# worktree: each task gets its own folder, a git worktree on the task branch (constitution 8).
+name      = "worktree"
+version   = "1"
+requires  = ["base", "classic_lifecycle"]
+after     = []
+conflicts = []
+group     = "classic_lifecycle_pack"
+writes    = ["worktrees/"]
+provides  = []
+reads     = ["task_card"]

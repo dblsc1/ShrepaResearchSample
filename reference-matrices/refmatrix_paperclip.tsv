@@ -1,0 +1,354 @@
+rule	ceo	cto	cmo	cfo	security	engineer	designer	pm	qa	devops	researcher	general	board	n_named	unresolved_locations	清点 named2
+P001														0		none
+P002														0		none
+P003														0		none
+P004														0		none
+P005														0		none
+P006														0		none
+P007														0		none
+P008														0		none
+P009														0		none
+P010														0		none
+P011	S													1		role:ceo
+P012														0		none
+P013														0		none
+P014														0		none
+P015														0		agentId-in-config
+P016														0		agentId-in-config
+P017														0		agentId-in-config
+P018														0		none
+P019														0		actor-type:user
+P020														0		none
+P021														0		none
+P022														0		none
+P023														0		none
+P024														0		agentId-in-config
+P025														0		agentId-in-config
+P026														0		agentId-in-config
+P027														0		agentId-in-config
+P028														0		actor-type:user
+P029														0		actor-type:user
+P030														0		agentId-in-config
+P031														0		agentId-in-config
+P032														0		agentId-in-config
+P033														0		agentId-in-config
+P034														0		agentId-in-config
+P035														0		agentId-in-config
+P036														0		agentId-in-config
+P037														0		agentId-in-config
+P038													S	1		actor-type:board
+P039														0		none
+P040														0		none
+P041														0		none
+P042														0		none
+P043													S	1		agentId-in-config
+P044	S												S	2	hasCreatePermission at llms.ts:14-18	role:ceo
+P045	S												S	2		role:ceo
+P046														0		none
+P047														0		none
+P048														0		none
+P049														0		agentId-in-config
+P050														0		none
+P051														0		none
+P052														0		none
+P053														0		none
+P054														0		none
+P055														0		none
+P056														0		none
+P057														0		agentId-in-config
+P058														0		none
+P059														0		none
+P060														0		none
+P061														0		agentId-in-config
+P062														0		none
+P063														0		none
+P064														0		none
+P065														0		none
+P066														0		none
+P067														0		none
+P068														0		none
+P069													S	1		none
+P070													S	1		none
+P071													S	1		none
+P072														0		none
+P073														0		none
+P074														0		actor-type:user
+P076														0	native-broker.ts:88-90；dot.ts:80-87	actor source: agent_jwt (repository), adapter:openai_dot/grok_bot/muse
+P077														0		none
+P078														0		none
+P080														0		none
+P081														0		none
+P082														0		none
+P083														0		none
+P088														0		none
+P089													S	1		actor-type:board
+P090														0		none
+P091														0		none
+P092														0		none
+P093														0		actor-type:user
+P094														0		none
+P095													S	1		none
+P097													S	1		none
+P098														0		none
+P099														0		none
+P100														0		none
+P101													S	1		actor-type:board
+P102														0		none
+P103														0		none
+P104														0		none
+P105														0		none
+P106														0		none
+P107														0		none
+P108														0		none
+P109														0		none
+P110														0		none
+P111													S	1		none
+P112														0		none
+P114														0		none
+P116														0		actor-type:user
+P117														0		none
+P118														0		actor-type:board
+P119														0		none
+P121														0		none
+P122													S	1		actor-type:board
+P123													S	1		membership:owner/admin
+P124													S	1		membership:owner/admin
+P125														0		none
+P127														0		none
+P131														0		none
+P132														0		none
+P133														0		actor-type:user
+P135														0		none
+P136														0		none
+P138														0		none
+P139														0		none
+P140														0		actor-type:user
+P141														0		none
+P142														0		none
+P143														0		none
+P144														0		none
+P145														0		none
+P146														0		actor-type:board
+P147														0		none
+P150														0		none
+P151														0		none
+P155														0		adapter:kubernetes/local
+P157														0		none
+P158														0		none
+P161														0		none
+P162														0		none
+P163														0		none
+P164														0		none
+P165														0		none
+P166														0		none
+P167													S	1		none
+P168													S	1		none
+P169														0		none
+P170														0		adapter:openai_dot/grok_bot/muse
+P171														0		none
+P174														0		none
+P175														0		none
+P176														0		none
+P177														0		none
+P178														0		none
+P179														0		none
+P180														0		none
+P181													S	1		actor-type:board
+P182													S	1		none
+P183														0		actor-type:board
+P186														0		company setting requireBoardApprovalForNewAgents
+P187														0		none
+P188													S	1		actor-type:board
+P189	S													1		role:ceo
+P190	S													1		role:ceo
+P192														0		none
+P193														0		none
+P194													S	1		actor-type:board
+P196														0		membership:active user
+P197														0		actor-type:board
+P198														0		adapter:process
+P199														0		adapter:*_local/paperclip_runner
+P200														0		adapter:paperclip_runner
+P201														0		none
+P202														0		none
+P205														0		none
+P208													S	1		actor-type:board
+P209														0		none
+P211														0		none
+P213														0		none
+P214														0		membership:admin
+P215														0		actor-type:board
+P216														0		none
+P217	S											S		2		role:ceo
+P218														0		adapter:paperclip_runner
+P220	S												S	2		role:ceo
+P221														0		membership:owner/admin
+P222	S												S	2		role:ceo
+P223													S	1		none
+P224													S	1		actor-type:board
+P226													S	1		membership:owner/admin
+P227														0		none
+P228													S	1		none
+P229														0		adapter:muse
+P230														0	native-broker.ts:80；dot.ts:86,345	none
+P231														0		none
+P232														0		none
+P233														0		none
+P234														0		none
+P235														0		none
+P236														0		none
+P237														0		none
+P238														0		none
+P240														0		none
+P242													S	1		actor-type:board
+P244														0		none
+P245														0		none
+P246														0		none
+P247														0		none
+P248														0		none
+P249														0		none
+P250														0		none
+P251														0		none
+P252														0		adapter:railway
+P253														0		none
+P254														0		none
+P255														0		none
+P256														0		none
+P257														0		adapter:native providers / connectionPurpose ai
+P258														0		none
+P259														0		none
+P260														0		none
+P261														0		none
+P262														0		none
+P263														0		none
+P264														0		adapter:muse/grok
+P265														0	:590；:744-754；:800-810；:820；:1119；:1211；:1263；:2269；:2322；:2642；:2694	workMode: standard, workMode: standard|skill_test
+P266														0	:645-660；:1566-1590；:2528-2538	adapter:openai_dot
+P267														0		none
+P268														0		none
+P269														0		none
+P270														0		none
+P271														0		none
+P272														0		reportsTo (caller agent id)
+P273														0		none
+P275														0		none
+P276													S	1		role:<string>, agentId-in-config
+P277														0		none
+P278														0		none
+P279														0		none
+P280													S	1		none
+P283														0		none
+P284														0		adapter:openai_dot/grok_bot/muse
+P286														0		none
+P287														0		adapter:muse
+P288														0	native-broker.ts:63-90；dot.ts:58-89	adapter:openai_dot/grok_bot/muse
+P289														0		adapter:paperclip_runner
+P290														0		adapter:muse
+P291														0	dot.ts:395-399	adapter:muse/openai_dot
+P293														0		adapter:openai_dot
+P294														0		adapter:grok_bot
+P295														0		membership:viewer
+P296														0		membership:viewer
+P297													S	1		none
+P298														0		none
+P299														0		none
+P300														0		none
+P301														0		none
+P302														0		none
+P303														0		none
+P304													S	1		actor-type:board
+P305													S	1		actor-type:board
+P306														0		none
+P307	S													1		role:ceo
+P312														0		adapter:sandbox
+P313														0		tool-class:runtime.manage
+P314														0		none
+P315														0		none
+P316														0		key scope: standard only
+P317													S	1		none
+P319														0		none
+P320														0		none
+P321														0		none
+P322														0		none
+P323													S	1		none
+P324														0		none
+P326														0		none
+P327														0		built-in:SUMMARIZER
+P328														0		built-in:SUMMARIZER
+P330														0		actor source: agent_jwt only
+P331														0		none
+P333													S	1		consumerId:environment-probe-config
+P334														0		none
+P335														0		none
+P336														0		none
+P337														0		none
+P338														0		none
+P339														0		none
+P340														0		none
+P343														0		actor source: agent_jwt
+P344														0		agent status in {idle,running,active}
+P345														0		none
+P346														0		none
+P347														0		none
+P348														0		none
+P349														0		adapter:muse
+P351													S	1		none
+P352														0		none
+P353														0		none
+P354														0		membership:viewer
+P355														0		none
+P357														0		agentId-in-config
+P358													S	1		none
+P359														0		none
+P360														0		none
+P362														0		none
+P364													S	1		actor-type:board
+P365														0		none
+P368														0		adapter:forbidden-list
+P370														0		none
+P371														0		none
+P372														0		none
+P373														0		membership:non-viewer
+P374														0		none
+P375														0		none
+P376														0		none
+P377														0		none
+P378														0		none
+P380														0		none
+P382														0		none
+P383														0		trust preset low_trust_review; toolClass github.pr.read
+P384														0		none
+P385														0		none
+P386														0		none
+P387														0		none
+P388														0		none
+P389														0		actor-type:board
+P390														0		none
+P391														0		none
+P392														0		none
+P393													S	1		none
+P394														0		trust preset low_trust_review
+P395														0		none
+P396														0		none
+P397														0		none
+P398														0		none
+P399														0		none
+P402														0		agentId-in-config
+P403														0		trust preset low_trust_review
+P404														0		trust preset low_trust_review
+P405														0		trust preset
+P406														0		none
+P407														0		none
+P408														0		none
+P409														0		none
+P410														0		none
+P413														0		none
+P414													S	1		none
+P415														0		trust preset low_trust_review
+P416														0		actor-type:board
+P417														0		actor-type:board
+P418														0		actor-type:board
+P419														0		actor-type:board
+P420														0		actor-type:board
+P421														0		actor-type:board
+P422														0		actor-type:board

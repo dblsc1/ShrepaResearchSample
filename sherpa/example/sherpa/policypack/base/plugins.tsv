@@ -1,0 +1,3 @@
+# The phone book: name, kind, the code file in this pack.
+name	kind	impl	locked
+init	command	init.py	yes

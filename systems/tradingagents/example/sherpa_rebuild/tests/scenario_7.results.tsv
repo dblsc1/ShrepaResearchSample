@@ -1,0 +1,8 @@
+case	given	who	does	on	args	expect	rule	source	got	reds	match	error
+S7-1	@open ; start FU ; ST = statements_analyst by fundamentals_analyst ; finish ST empty ; commit FU empty	fundamentals_analyst	debrief	FU		pass		test_allowed_full_run_the_worker_reports_to_the_analyst: the analyst hands back after its worker	pass		yes	
+S7-2	@open ; @reports ; @debate ; @plan ; @trade ; @risk ; commit PM empty	portfolio_manager	debrief	PM		pass		same test: the whole run goes through	pass		yes	
+S7-3	@open ; start FU ; ST = statements_analyst by fundamentals_analyst ; start ST	statements_analyst	commit	ST	reports/fundamentals_analyst.md	block	seat_write_limit.outside_seat_paths	test_rejected_the_worker_hands_back_only_its_report_and_keeps_the_run_date (report part): the worker writes only its own report	block	seat_write_limit.outside_seat_paths	yes	
+S7-4	@open ; start FU ; ST = statements_analyst by fundamentals_analyst ; start ST	statements_analyst	commit	ST	reports/statements_analyst.md	pass		same test (pass side)	pass		yes	
+S7-5	@open ; start FU ; commit FU empty	fundamentals_analyst	debrief	FU		block	fixed_order.missing_lower	parity: in TradingAgents the worker always runs first; the analyst cannot skip it	block	fixed_order.missing_lower	yes	
+S7-6	@open ; start FU ; ST = statements_analyst by fundamentals_analyst ; start ST ; commit FU empty	fundamentals_analyst	debrief	FU		block	parallel_wait_all.tasks_not_ended	the analyst waits for its worker to finish	block	parallel_wait_all.tasks_not_ended	yes	
+S7-7	@open ; start FU ; ST = statements_analyst by fundamentals_analyst ; start ST ; land ST empty	fundamentals_analyst	reopen	ST		block	reopen_limit.limit_reached	the worker runs once, like every node	block	reopen_limit.limit_reached	yes	

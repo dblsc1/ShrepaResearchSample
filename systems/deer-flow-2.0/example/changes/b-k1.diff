@@ -1,0 +1,22 @@
+diff --git a/config.yaml b/config.yaml
+index 45c50fbd1..243a955fc 100644
+--- a/config.yaml
++++ b/config.yaml
+@@ -2108,6 +2108,17 @@ subagents:
+           - write_file
+       marks:
+         n1: delta
++    researcher_2:
++      description: "Searches the web and reads pages to collect information for one research step."
++      system_prompt: |
++          You are the `researcher` subagent.
++          Search the web and read pages to collect information for the step you are given.
++          Output a Markdown report of your findings with a References section.
++      tools:
++          - web_search
++          - web_fetch
++      marks:
++        n1: basil
+ 
+ # subagents:
+ #   # Default timeout (seconds) for built-in subagents (default: 1800 = 30 min).

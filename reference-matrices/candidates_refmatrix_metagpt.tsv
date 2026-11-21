@@ -1,0 +1,15 @@
+rule	shared_rule	TeamLeader	ProductManager	Architect	Engineer2	DataAnalyst	n_named	清单「点名」	对不上
+R01	write						0	-	
+R02	write	b					0	TeamLeader	TeamLeader
+R03	write		b				0	ProductManager	ProductManager
+R04	write			b			0	Architect	Architect
+R05	write				b		0	Engineer2	Engineer2
+R06	write					b	0	DataAnalyst	DataAnalyst
+R07	-						0	-	
+R08	-			b			0	Architect	Architect
+R09	cap	b			b		0	Engineer2、TeamLeader	Engineer2、TeamLeader
+R10	-						0	TeamLeader	TeamLeader
+R11	-	b					0	TeamLeader	TeamLeader
+R12	-						0	-	
+R13	cap						0	-	
+R14	cap						0	-	

@@ -1,0 +1,1 @@
+{"about": "covered by the pairing tables (_pairing/run_table.py), not here", "todo": "pack_cases.py knows only five fixed people (human, worker, worker2, cto, reviewer) and a case cannot set the workflow params this pack needs; see TradingAgents/sherpa_equivalent/tests/flow_baseline.tsv (B4, B5, B8, B14, B15, B19, B21, B22)", "steps": []}

@@ -1,0 +1,13 @@
+rule	human	programmer_coding	programmer_code_complete	code_reviewer	programmer_code_review	programmer_test_error_summary	programmer_test_modification	software_test_engineer	chief_product_officer	chief_executive_officer	n_named	unresolved_locations
+kernel(Core)											0	
+base	C										1	
+classic_lifecycle											0	
+git											0	
+worktree											0	
+task_card											0	
+write_scope											0	
+waits_for											0	
+parallel_wait_all											0	
+seat_write_limit				C		C					2	
+reopen_limit			C	C	C		C	C	C	C	7	
+seat_precedence		C	C	C	C	C	C	C	C	C	9	

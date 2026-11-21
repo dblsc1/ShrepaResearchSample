@@ -1,0 +1,12 @@
+# waits_for: `sherpa dispatch ... --waits-for T-1,T-2`; the new task takes off only after those ended.
+# Long workflows are laid out flat with it (chains or any graph without loops). A task can only wait
+# for tasks that exist when it is dispatched, so the waiting can never close a loop.
+name      = "waits_for"
+version   = "1"
+requires  = ["base", "classic_lifecycle"]
+after     = []
+conflicts = []
+group     = "classic_lifecycle_pack"
+writes    = []
+provides  = ["dispatch --waits-for"]
+reads     = ["archive", "task_card"]

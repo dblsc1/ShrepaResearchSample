@@ -1,0 +1,12 @@
+rule	human	portfolio_manager	research_manager	market_analyst	sentiment_analyst	news_analyst	fundamentals_analyst	bull_researcher	bear_researcher	memory_log	trader	aggressive_analyst	conservative_analyst	neutral_analyst	n_named	unresolved_locations
+kernel(Core)															0	
+base	C														1	
+classic_lifecycle															0	
+git															0	
+worktree															0	
+task_card															0	
+waits_for															0	
+parallel_wait_all															0	
+fixed_order		C	C	C	C	C	C	C	C	C	C	C	C	C	13	
+seat_write_limit				C	C	C	C								4	
+reopen_limit		C	C	C	C	C	C	C	C	C	C	C	C	C	13	

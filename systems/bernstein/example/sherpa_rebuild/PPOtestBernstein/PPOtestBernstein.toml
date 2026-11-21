@@ -1,0 +1,100 @@
+# PPOtestBernstein (placeholder name): the Sherpa counterpart of Bernstein's default organization
+# (bernstein.yaml at cb761c6): the person hands the goal to the manager, the manager dispatches to eight
+# peer workers. Bernstein's orchestrator and janitor are not seats: the upper dispatches and takes receipt,
+# the checks below stand where the janitor and the task server refuse.
+[[instance]]
+id        = "human_to_manager"
+lifecycle = "classic_lifecycle"
+upper     = "human"
+lower     = "manager"
+
+[[instance]]
+id        = "manager_to_architect"
+lifecycle = "classic_lifecycle"
+upper     = "manager"
+lower     = "architect"
+
+[[instance]]
+id        = "manager_to_security"
+lifecycle = "classic_lifecycle"
+upper     = "manager"
+lower     = "security"
+
+[[instance]]
+id        = "manager_to_backend"
+lifecycle = "classic_lifecycle"
+upper     = "manager"
+lower     = "backend"
+
+[[instance]]
+id        = "manager_to_frontend"
+lifecycle = "classic_lifecycle"
+upper     = "manager"
+lower     = "frontend"
+
+[[instance]]
+id        = "manager_to_qa"
+lifecycle = "classic_lifecycle"
+upper     = "manager"
+lower     = "qa"
+
+[[instance]]
+id        = "manager_to_reviewer"
+lifecycle = "classic_lifecycle"
+upper     = "manager"
+lower     = "reviewer"
+
+[[instance]]
+id        = "manager_to_docs"
+lifecycle = "classic_lifecycle"
+upper     = "manager"
+lower     = "docs"
+
+[[instance]]
+id        = "manager_to_devops"
+lifecycle = "classic_lifecycle"
+upper     = "manager"
+lower     = "devops"
+
+[seat.human]
+card = "cards/human.md"
+[seat.manager]
+card = "cards/manager.md"
+[seat.architect]
+card = "cards/architect.md"
+[seat.security]
+card = "cards/security.md"
+[seat.backend]
+card = "cards/backend.md"
+[seat.frontend]
+card = "cards/frontend.md"
+[seat.qa]
+card = "cards/qa.md"
+[seat.reviewer]
+card = "cards/reviewer.md"
+[seat.docs]
+card = "cards/docs.md"
+[seat.devops]
+card = "cards/devops.md"
+
+# R1 role writable paths (Bernstein permissions.py:155-196; reviewer is not in that table, so not limited).
+[policy.seat_write_limit]
+params = "backend=src,tests,docs,pyproject.toml,scripts;frontend=src,tests,docs,public,static,package.json;qa=tests,src,docs,scripts;security=src,tests,.github/workflows,docs,scripts;devops=.github,Dockerfile,docker-compose.yaml,docker-compose.yml,scripts,Makefile;docs=docs,README.md,CHANGELOG.md,CONTRIBUTING.md;manager=docs,.sdd/backlog,plans;architect=src,tests,docs,scripts"
+
+# R7 a manager task handed back without any child task fails (task_store_core.py:2399).
+[policy.must_decompose]
+only   = ["manager"]
+params = "min=1"
+
+# R9 a parent waits for the subtasks it created (task_crud.py:1354, task_store_core.py:3088); Bernstein's
+# manager creates tasks with a plain POST /tasks and hands its task back without waiting, so it is left out.
+[policy.parallel_wait_all]
+except = ["manager"]
+
+# R15 reviewer model != writer model: the pack review_model_differs is installed but not configured,
+# as cross_model_verify is off in Bernstein's default config (models.py:1703).
+
+# R3 a cancelled task does not release the tasks that wait for it: Bernstein's depends_on is met only by a done
+# or closed task (task_store_core.py:1484-1488, blocking_dependency), while waits_for alone also counts cancelled.
+[policy.waits_for]
+params = "ended=closed"

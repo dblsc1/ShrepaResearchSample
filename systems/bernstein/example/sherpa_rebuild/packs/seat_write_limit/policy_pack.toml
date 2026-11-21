@@ -1,0 +1,11 @@
+# seat_write_limit: a seat named in the workflow's params may commit only under its own paths ("-" = nothing: read-only).
+# [policy.seat_write_limit] params = "code_reviewer=-;worker=src/app/,docs/"   Seats not named are not limited.
+name      = "seat_write_limit"
+version   = "1"
+requires  = ["base", "classic_lifecycle", "git"]
+after     = []
+conflicts = []
+group     = "classic_lifecycle_pack"
+writes    = []
+provides  = []
+reads     = ["git"]

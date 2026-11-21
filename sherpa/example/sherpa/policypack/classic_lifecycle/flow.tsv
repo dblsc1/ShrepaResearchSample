@@ -1,0 +1,12 @@
+# The classic unit. State = the last time point that moved this task (human ruling 2026-11-03).
+# landing is checked on every commit: red is a go-around (the state stays); passed moves to landed.
+command	roles	actor	object	from	to	body
+dispatch	@upper	-	tasks	-	dispatched	dispatch
+brief	@lower	task_card.card.assignee	tasks	dispatched	briefed	-
+takeoff	@lower	task_card.card.assignee	tasks	briefed	onAir	-
+landing	@lower	task_card.card.assignee	tasks	onAir,landed,debriefed	landed	-
+debrief	@lower	task_card.card.assignee	tasks	landed	debriefed	-
+receipt	@upper	task_card.card.issued_by	tasks	debriefed	closed	-
+reopen	@upper	task_card.card.issued_by	tasks	debriefed	briefed	-
+cancel	@upper	task_card.card.issued_by	tasks	dispatched,briefed,onAir,landed,debriefed	cancelling	-
+cancel-confirm	@upper	task_card.card.issued_by	tasks	cancelling	cancelled	-

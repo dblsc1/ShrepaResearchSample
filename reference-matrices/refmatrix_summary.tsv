@@ -1,0 +1,9 @@
+system	rule_units	org_elements	filled_cells	density	cells_with_source_ref	cells_with_config_ref	avg_elements_per_rule	avg_rules_per_element	rules_naming_any	elements_named_by_any	unresolved_locations
+chatdev	9	26	49	20.940%	0	49	5.44	1.88	3	26	0
+TradingAgents	10	18	26	14.444%	26	0	2.60	1.44	5	17	0
+bernstein	80	9	25	3.472%	25	0	0.31	2.78	7	9	0
+paperclip	353	13	52	1.133%	52	0	0.15	4.00	47	3	22
+sherpa_group	16	4	1	1.562%	0	1	0.06	0.25	1	1	0
+chatdev_eq	12	10	19	15.833%	0	19	1.58	1.90	4	10	0
+TradingAgents_eq	11	14	31	20.130%	0	31	2.82	2.21	4	14	0
+bernstein_eq	12	10	11	9.167%	0	11	0.92	1.10	4	9	0

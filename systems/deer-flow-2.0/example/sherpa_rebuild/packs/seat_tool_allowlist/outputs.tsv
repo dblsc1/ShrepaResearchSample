@@ -1,0 +1,4 @@
+# The hook goes into the task's worktree as soon as the worktree exists (before any agent starts there).
+event	output	params	locked
+dispatch.passed	install_tool_hook	-	no
+takeoff.passed	install_tool_hook	-	no

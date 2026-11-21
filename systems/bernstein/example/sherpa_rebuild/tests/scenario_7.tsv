@@ -1,0 +1,8 @@
+case	given	who	does	on	args	expect	rule	source
+S7a	@mgr ; T1 = backend by manager ; start T1 ; T2 = helper by backend ; commit T1	backend	debrief	T1		block	parallel_wait_all.tasks_not_ended	test_scenario_7::test_parent_not_done_while_helper_open
+S7b	@mgr ; T1 = backend by manager ; start T1 ; T2 = helper by backend ; finish T2 ; commit T1	backend	debrief	T1		pass		test_scenario_7::test_backend_delegates_to_helper_and_waits
+S7c	@mgr ; T1 = backend by manager ; start T1 ; T2 = helper by backend ; T3 = helper after T2 by backend ; brief T3	helper	takeoff	T3		block	waits_for.not_ended	test_scenario_7::test_dependency_rule_applies_to_helper
+S7d	@mgr ; T1 = backend by manager ; start T1 ; T2 = helper scope src/,pyproject.toml,.github/ by backend ; start T2	helper	commit	T2	src/bernstein/core/parser.py	pass		test_scenario_7::test_write_scope_rule_applies_to_helper (src/ allowed)
+S7e	@mgr ; T1 = backend by manager ; start T1 ; T2 = helper scope src/,pyproject.toml,.github/ by backend ; start T2	helper	commit	T2	pyproject.toml	block	seat_write_limit.outside_seat_paths	test_scenario_7::test_write_scope_rule_applies_to_helper (pyproject refused)
+S7f	@mgr ; T1 = backend by manager ; start T1 ; T2 = helper scope src/,pyproject.toml,.github/ by backend ; start T2	helper	commit	T2	.github/workflows/ci.yml	block	seat_write_limit.outside_seat_paths	test_scenario_7::test_write_scope_rule_applies_to_helper (.github refused)
+S7g	@mgr ; T1 = backend by manager ; T2 = helper by backend ; brief T1	helper	takeoff	T1		block	builtin.actor	test_scenario_7::test_helper_token_scoped_and_mcp_subtask_role_accepted (scoped side)
